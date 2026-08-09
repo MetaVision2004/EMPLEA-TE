@@ -81,7 +81,7 @@ router.post("/estado", async (req, res) => {
 // ─── POST /api/email/recuperar ───────────────────────────────────────────────
 // Body: { email }
 // Genera el reset-link con la service_role (sin disparar email de Supabase)
-// y lo envía con Resend — evita completamente el rate limit del auth de Supabase.
+// y lo envía con Gmail SMTP — evita completamente el rate limit del auth de Supabase.
 router.post("/recuperar", async (req, res) => {
   const { email } = req.body;
 

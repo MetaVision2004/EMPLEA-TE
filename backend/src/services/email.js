@@ -1,7 +1,36 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = process.env.FROM_EMAIL || "Emplea-TE <onboarding@resend.dev>";
+const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@gmail.com>";
+
+function createTransporter() {
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!user || !pass) {
+    throw new Error("Faltan SMTP_USER o SMTP_PASS para enviar correos con Gmail.");
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+    auth: {
+      user,
+      pass,
+    },
+  });
+}
+
+async function sendMail({ to, subject, html }) {
+  const transporter = createTransporter();
+
+  return transporter.sendMail({
+    from: FROM,
+    to,
+    subject,
+    html,
+  });
+}
 
 // ─── Shared layout ──────────────────────────────────────────────────────────
 
@@ -89,9 +118,8 @@ export async function sendWelcome({ name, email }) {
     </p>
   `;
 
-  return resend.emails.send({
-    from: FROM,
-    to: [email],
+  return sendMail({
+    to: email,
     subject: `¡Bienvenido/a a Emplea-TE, ${name}! 🚀`,
     html: layout("Bienvenido/a a Emplea-TE", body),
   });
@@ -125,9 +153,8 @@ export async function sendApplicationConfirmation({ name, email, ofertaTitulo, o
     </div>
   `;
 
-  return resend.emails.send({
-    from: FROM,
-    to: [email],
+  return sendMail({
+    to: email,
     subject: `Postulación confirmada: ${ofertaTitulo} en ${ofertaEmpresa} ✅`,
     html: layout("Confirmación de Postulación", body),
   });
@@ -177,9 +204,8 @@ export async function sendStatusChange({ name, email, ofertaTitulo, ofertaEmpres
     </div>
   `;
 
-  return resend.emails.send({
-    from: FROM,
-    to: [email],
+  return sendMail({
+    to: email,
     subject: `${info.emoji} Tu postulación en ${ofertaEmpresa}: ${info.label}`,
     html: layout("Actualización de Postulación", body),
   });
@@ -218,9 +244,8 @@ export async function sendPasswordReset({ name, email, resetLink }) {
     </p>
   `;
 
-  return resend.emails.send({
-    from: FROM,
-    to: [email],
+  return sendMail({
+    to: email,
     subject: `🔐 Restablece tu contraseña en Emplea-TE`,
     html: layout("Recuperación de Cuenta", body),
   });

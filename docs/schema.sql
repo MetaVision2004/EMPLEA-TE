@@ -81,14 +81,36 @@ alter table experiencias enable row level security;
 alter table postulaciones enable row level security;
 
 -- Perfiles: cada quien ve y edita solo el suyo
+drop policy if exists "select_propio_perfil" on perfiles;
 create policy "select_propio_perfil" on perfiles
   for select using (auth.uid() = id);
 
+drop policy if exists "insert_propio_perfil" on perfiles;
 create policy "insert_propio_perfil" on perfiles
   for insert with check (auth.uid() = id);
 
+drop policy if exists "update_propio_perfil" on perfiles;
 create policy "update_propio_perfil" on perfiles
   for update using (auth.uid() = id);
+
+-- Trigger para crear perfil automáticamente al registrarse en auth.users (evita error RLS al crear cuenta)
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.perfiles (id, nombre)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'nombre', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1))
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- Experiencias: solo el dueño del perfil asociado
 create policy "select_propias_experiencias" on experiencias
