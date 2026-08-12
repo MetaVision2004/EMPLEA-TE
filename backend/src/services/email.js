@@ -3,8 +3,8 @@ import nodemailer from "nodemailer";
 const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@gmail.com>";
 
 function createTransporter() {
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = (process.env.SMTP_USER || "").trim();
+  const pass = (process.env.SMTP_PASS || "").replace(/\s+/g, "").trim();
 
   if (!user || !pass) {
     throw new Error("Faltan SMTP_USER o SMTP_PASS para enviar correos con Gmail.");
