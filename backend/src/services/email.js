@@ -249,7 +249,8 @@ export async function sendPasswordReset({ name, email, resetLink }) {
     subject: `🔐 Restablece tu contraseña en Emplea-TE`,
     html: layout("Recuperación de Cuenta", body),
   });
-// ───── Coloca esta función cerca de las otras exportadas (por ejemplo, después de sendApplicationConfirmation) ────────────
+}
+// Coloca esta función cerca de las otras exportadas (por ejemplo, después de sendApplicationConfirmation)
 export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }) {
   const body = `
     <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">Nueva oferta disponible 🔔</h2>
@@ -283,5 +284,4 @@ export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, o
     subject: `💼 Nueva oferta: ${ofertaTitulo} en ${ofertaEmpresa}`,
     html: layout("Nueva Oferta en Emplea-TE", body),
   });
-}
 }
