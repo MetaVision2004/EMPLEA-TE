@@ -250,3 +250,38 @@ export async function sendPasswordReset({ name, email, resetLink }) {
     html: layout("Recuperación de Cuenta", body),
   });
 }
+// Coloca esta función cerca de las otras exportadas (por ejemplo, después de sendApplicationConfirmation)
+export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }) {
+  const body = `
+    <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">Nueva oferta disponible 🔔</h2>
+    <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
+      Hola <strong>${name}</strong>, hemos publicado una nueva oferta que podría interesarte.
+    </p>
+
+    <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:16px;padding:24px;margin-bottom:20px;border-left:5px solid #6366f1;">
+      <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;">Oferta destacada</p>
+      <p style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1e1b4b;">${ofertaTitulo}</p>
+      <p style="margin:0;font-size:14px;color:#6b7280;">${ofertaEmpresa} &nbsp;·&nbsp; ${ofertaCiudad || "Remoto"}</p>
+    </div>
+
+    <div style="background:#f0f9ff;border-radius:12px;padding:18px;margin-bottom:28px;">
+      <p style="margin:0;color:#0369a1;font-size:14px;line-height:1.6;">
+        Si te interesa, entra a la oferta y postúlate desde tu cuenta. ¡Mucha suerte!
+      </p>
+    </div>
+
+    <div style="text-align:center;">
+      ${btn("Ver oferta →", (process.env.FRONTEND_URL || "http://localhost:3000") + "/ofertas")}
+    </div>
+
+    <p style="color:#9ca3af;font-size:13px;margin:24px 0 0;text-align:center;">
+      ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@emplea-te.com" style="color:#6366f1;">soporte@emplea-te.com</a>
+    </p>
+  `;
+
+  return sendMail({
+    to: email,
+    subject: `💼 Nueva oferta: ${ofertaTitulo} en ${ofertaEmpresa}`,
+    html: layout("Nueva Oferta en Emplea-TE", body),
+  });
+}
