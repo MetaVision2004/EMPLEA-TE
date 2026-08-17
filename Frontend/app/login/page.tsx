@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,7 +47,13 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/perfil");
+    // Redirigir según rol
+    const loggedEmail = email.trim().toLowerCase();
+    if (isAdmin(loggedEmail)) {
+      router.push("/admin/ofertas");
+    } else {
+      router.push("/perfil");
+    }
   };
 
   return (

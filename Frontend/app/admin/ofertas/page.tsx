@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -199,16 +200,28 @@ export default function AdminOfertasPage() {
         activa: formData.activa,
       };
 
-      const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
-        method: editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      let success = false;
+      try {
+        const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
+          method: editingId ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          success = true;
+        }
+      } catch {
+        // Fallback a Supabase client directo si el servidor backend no está respondiendo
+      }
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo guardar la oferta.");
+      if (!success) {
+        if (editingId) {
+          const { error } = await supabase.from("ofertas").update(payload).eq("id", editingId);
+          if (error) throw new Error(error.message);
+        } else {
+          const { error } = await supabase.from("ofertas").insert([payload]);
+          if (error) throw new Error(error.message);
+        }
       }
 
       mostrarMensaje(
@@ -237,16 +250,19 @@ export default function AdminOfertasPage() {
     );
 
     try {
-      const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activa: nuevoEstado }),
-      });
+      let success = false;
+      try {
+        const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ activa: nuevoEstado }),
+        });
+        if (response.ok) success = true;
+      } catch {}
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo cambiar el estado.");
+      if (!success) {
+        const { error } = await supabase.from("ofertas").update({ activa: nuevoEstado }).eq("id", oferta.id);
+        if (error) throw new Error(error.message);
       }
 
       mostrarMensaje(
@@ -265,14 +281,17 @@ export default function AdminOfertasPage() {
     setDeleting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
-        method: "DELETE",
-      });
+      let success = false;
+      try {
+        const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
+          method: "DELETE",
+        });
+        if (response.ok) success = true;
+      } catch {}
 
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || "No se pudo eliminar la oferta.");
+      if (!success) {
+        const { error } = await supabase.from("ofertas").delete().eq("id", deleteConfirmId);
+        if (error) throw new Error(error.message);
       }
 
       mostrarMensaje("success", "Oferta eliminada correctamente.");
@@ -302,7 +321,7 @@ export default function AdminOfertasPage() {
           🔒
         </div>
         <h2 className="text-xl font-display font-bold text-ink">
-          Acceso Restringido - Modo Privado Admin
+          Acceso Restringido - Panel de Administración
         </h2>
         <p className="text-ink/70 text-sm">
           El Panel de Administración requiere iniciar sesión con una cuenta autorizada de administrador.
@@ -313,6 +332,28 @@ export default function AdminOfertasPage() {
           </Link>
           <Link href="/ofertas" className="btn-outline">
             Ir al Sitio Público
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // GUARDA DE SEGURIDAD: Usuario autenticado pero NO es administrador
+  if (!isAdmin(user.email)) {
+    return (
+      <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
+        <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto text-2xl">
+          ⛔
+        </div>
+        <h2 className="text-xl font-display font-bold text-ink">
+          Acceso Denegado
+        </h2>
+        <p className="text-ink/70 text-sm">
+          Tu cuenta no tiene permisos de administrador. Esta sección está reservada únicamente para administradores autorizados.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Link href="/ofertas" className="btn-primary">
+            Ir a Ofertas de Empleo
           </Link>
         </div>
       </div>

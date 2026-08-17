@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { triggerEmail } from "@/lib/email";
+import { isAdmin } from "@/lib/auth";
 
 export default function RegistroPage() {
   const router = useRouter();
@@ -40,6 +41,13 @@ export default function RegistroPage() {
     }
 
     setLoading(true);
+
+    // Bloquear registro con correos de administrador
+    if (isAdmin(email.trim())) {
+      setError("Este correo electrónico está reservado para una cuenta de administrador y no puede registrarse como usuario.");
+      setLoading(false);
+      return;
+    }
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),

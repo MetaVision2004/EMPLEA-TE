@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth";
 
 export default function PerfilPage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -12,6 +14,7 @@ export default function PerfilPage() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -21,6 +24,7 @@ export default function PerfilPage() {
         return;
       }
       setUserId(user.id);
+      setUserEmail(user.email ?? undefined);
 
       const { data: perfil } = await supabase
         .from("perfiles")
@@ -78,6 +82,28 @@ export default function PerfilPage() {
       <div className="card">
         <p>Debes iniciar sesión para ver tu perfil.</p>
         <a href="/login" className="text-primary-500 underline font-medium">Ir a login</a>
+      </div>
+    );
+  }
+
+  // GUARDA DE SEGURIDAD: Los administradores no acceden a esta sección
+  if (isAdmin(userEmail)) {
+    return (
+      <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
+        <div className="w-12 h-12 rounded-full bg-accent-50 text-accent-500 flex items-center justify-center mx-auto text-2xl">
+          🔒
+        </div>
+        <h2 className="text-xl font-display font-bold text-ink">
+          Sección exclusiva para candidatos
+        </h2>
+        <p className="text-ink/70 text-sm">
+          Como administrador, tu espacio de trabajo es el Panel de Administración. Esta sección es solo para usuarios candidatos.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Link href="/admin/ofertas" className="btn-primary bg-accent-500 hover:bg-accent-600">
+            Ir al Panel Admin
+          </Link>
+        </div>
       </div>
     );
   }

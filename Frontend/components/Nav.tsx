@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { isAdmin } from "@/lib/auth";
 
 export default function Nav() {
   const pathname = usePathname();
@@ -14,15 +15,7 @@ export default function Nav() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Modo activo: "publico" (Candidato) | "privado" (Admin)
-  const [modo, setModo] = useState<"publico" | "privado">("publico");
-
   useEffect(() => {
-    // Si la ruta actual es /admin/..., sincronizar modo privado automáticamente
-    if (pathname.startsWith("/admin")) {
-      setModo("privado");
-    }
-
     const checkUser = async () => {
       const {
         data: { user: currentUser },
@@ -49,18 +42,11 @@ export default function Nav() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    setModo("publico");
     router.push("/login");
   };
 
-  const toggleModo = (nuevoModo: "publico" | "privado") => {
-    setModo(nuevoModo);
-    if (nuevoModo === "privado") {
-      router.push("/admin/ofertas");
-    } else {
-      router.push("/ofertas");
-    }
-  };
+  // Determinar si el usuario es administrador
+  const userIsAdmin = isAdmin(user?.email);
 
   const linkClass = (href: string) =>
     `text-sm transition-colors ${
@@ -81,43 +67,26 @@ export default function Nav() {
     { href: "/perfil", label: "Mi perfil" },
   ];
 
-  const activeLinks = modo === "privado" ? adminLinks : publicLinks;
+  const activeLinks = userIsAdmin ? adminLinks : publicLinks;
 
   return (
     <header className="bg-primary-500 sticky top-0 z-30 shadow-md">
       <nav className="max-w-5xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
-        {/* LOGO & BADGE DE MODO */}
+        {/* LOGO & BADGE DE ROL */}
         <div className="flex items-center gap-3">
           <Link href="/" className="font-display font-bold text-lg text-white tracking-tight flex items-center gap-1">
             Emplea<span className="text-accent-300">-TE</span>
           </Link>
 
-          {/* Selector de Modo Público / Privado (visible si logged in) */}
+          {/* Badge de rol (visible si logged in) */}
           {user && (
-            <div className="hidden sm:inline-flex bg-primary-600/80 p-0.5 rounded-xl border border-white/10 text-xs">
-              <button
-                onClick={() => toggleModo("publico")}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  modo === "publico"
-                    ? "bg-white text-primary-600 shadow-xs"
-                    : "text-white/70 hover:text-white"
-                }`}
-                title="Modo Público para postulantes"
-              >
-                🌐 Público
-              </button>
-              <button
-                onClick={() => toggleModo("privado")}
-                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                  modo === "privado"
-                    ? "bg-accent-500 text-white shadow-xs"
-                    : "text-white/70 hover:text-white"
-                }`}
-                title="Modo Privado para administradores"
-              >
-                🔒 Privado Admin
-              </button>
-            </div>
+            <span className={`hidden sm:inline-flex px-2.5 py-1 rounded-xl text-xs font-medium border ${
+              userIsAdmin
+                ? "bg-accent-500/20 text-white border-accent-300/30"
+                : "bg-white/10 text-white/90 border-white/10"
+            }`}>
+              {userIsAdmin ? "🔒 Administrador" : "🌐 Candidato"}
+            </span>
           )}
         </div>
 
@@ -192,29 +161,11 @@ export default function Nav() {
         <div className="md:hidden bg-primary-600 px-6 pb-4 pt-2 flex flex-col gap-3 border-t border-white/10">
           {user && (
             <div className="flex items-center gap-2 mb-2 p-2 bg-primary-700/60 rounded-xl text-xs">
-              <span className="text-white/80 font-medium">Modo:</span>
-              <button
-                onClick={() => {
-                  toggleModo("publico");
-                  setOpen(false);
-                }}
-                className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                  modo === "publico" ? "bg-white text-primary-600" : "text-white/70"
-                }`}
-              >
-                🌐 Público
-              </button>
-              <button
-                onClick={() => {
-                  toggleModo("privado");
-                  setOpen(false);
-                }}
-                className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                  modo === "privado" ? "bg-accent-500 text-white" : "text-white/70"
-                }`}
-              >
-                🔒 Privado Admin
-              </button>
+              <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
+                userIsAdmin ? "bg-accent-500 text-white" : "bg-white text-primary-600"
+              }`}>
+                {userIsAdmin ? "🔒 Administrador" : "🌐 Candidato"}
+              </span>
             </div>
           )}
 
