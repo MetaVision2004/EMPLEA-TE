@@ -80,8 +80,7 @@ router.post("/estado", async (req, res) => {
 
 // ─── POST /api/email/recuperar ───────────────────────────────────────────────
 // Body: { email }
-// Genera el reset-link con la service_role (sin disparar email de Supabase)
-// y lo envía con Gmail SMTP — evita completamente el rate limit del auth de Supabase.
+// Delega el envío del correo a Supabase Auth para evitar depender de Gmail SMTP.
 router.post("/recuperar", async (req, res) => {
   const { email } = req.body;
 
@@ -93,27 +92,14 @@ router.post("/recuperar", async (req, res) => {
     (process.env.FRONTEND_URL || "http://localhost:3000") + "/nueva-contrasena";
 
   try {
-    // Generar el link de reset SIN enviar email (Supabase admin API)
-    const { data, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: { redirectTo },
+    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo,
     });
 
-    if (linkError) {
-      // Si el email no existe respondemos igual para no revelar usuarios registrados
-      console.warn("[email/recuperar] generateLink:", linkError.message);
+    if (error) {
+      console.warn("[email/recuperar] resetPasswordForEmail:", error.message);
       return res.json({ ok: true });
     }
-
-    const resetLink = data?.properties?.action_link;
-    if (!resetLink) {
-      console.error("[email/recuperar] No se obtuvo action_link de Supabase");
-      return res.status(500).json({ error: "No se pudo generar el enlace de recuperación." });
-    }
-
-    const name = email.split("@")[0];
-    await sendPasswordReset({ name, email, resetLink });
 
     res.json({ ok: true });
   } catch (err) {

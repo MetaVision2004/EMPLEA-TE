@@ -1,35 +1,33 @@
-import nodemailer from "nodemailer";
+import { supabaseAdmin } from "../config/supabase.js";
 
-const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@gmail.com>";
+const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@supabase.co>";
 
-function createTransporter() {
-  const user = (process.env.SMTP_USER || "").trim();
-  const pass = (process.env.SMTP_PASS || "").replace(/\s+/g, "").trim();
-
-  if (!user || !pass) {
-    throw new Error("Faltan SMTP_USER o SMTP_PASS para enviar correos con Gmail.");
-  }
-
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
-    auth: {
-      user,
-      pass,
-    },
-  });
+function getEmailProvider() {
+  return (process.env.EMAIL_PROVIDER || "supabase").toLowerCase();
 }
 
-async function sendMail({ to, subject, html }) {
-  const transporter = createTransporter();
+export async function sendMail({ to, subject, html, type = "custom" }) {
+  const provider = getEmailProvider();
 
-  return transporter.sendMail({
-    from: FROM,
-    to,
-    subject,
-    html,
-  });
+  if (provider === "supabase" || provider === "supabase-auth") {
+    console.warn(
+      `[email:${type}] El envío se gestiona con Supabase Auth. No se usa SMTP/Gmail para mensajes transaccionales.`
+    );
+
+    return {
+      ok: true,
+      provider: "supabase-auth",
+      skipped: true,
+      to,
+      subject,
+      html,
+      from: FROM,
+    };
+  }
+
+  throw new Error(
+    "No hay un proveedor de emails configurado. Usa Supabase Auth para correos de autenticación o configura un SMTP válido."
+  );
 }
 
 // ─── Shared layout ──────────────────────────────────────────────────────────
@@ -214,41 +212,21 @@ export async function sendStatusChange({ name, email, ofertaTitulo, ofertaEmpres
 // ─── 4. Password reset ────────────────────────────────────────────────────────
 
 export async function sendPasswordReset({ name, email, resetLink }) {
-  const body = `
-    <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">Recupera tu cuenta 🔐</h2>
-    <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Hola <strong>${name}</strong>, recibimos una solicitud para restablecer la contraseña de tu cuenta en
-      <strong style="color:#6366f1;">Emplea-TE</strong>.
-    </p>
+  const redirectTo = resetLink || (process.env.FRONTEND_URL || "http://localhost:3000") + "/nueva-contrasena";
+  const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
 
-    <div style="background:#fef9ff;border-radius:16px;padding:28px;margin-bottom:28px;border:1px solid #e9d5ff;">
-      <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:0.5px;">¿Qué debes hacer?</p>
-      <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">
-        Haz clic en el botón de abajo para crear una nueva contraseña. Este enlace es válido durante
-        <strong>60 minutos</strong> y solo puede usarse una vez.
-      </p>
-    </div>
+  if (error) {
+    throw error;
+  }
 
-    <div style="text-align:center;margin-bottom:28px;">
-      ${btn("Restablecer contraseña →", resetLink)}
-    </div>
-
-    <div style="background:#fef2f2;border-radius:12px;padding:20px;margin-bottom:8px;">
-      <p style="margin:0;color:#991b1b;font-size:13px;line-height:1.7;">
-        ⚠️ <strong>Si no solicitaste esto</strong>, ignora este correo. Tu contraseña no cambiará y tu cuenta permanece segura.
-      </p>
-    </div>
-
-    <p style="color:#9ca3af;font-size:13px;margin:24px 0 0;text-align:center;">
-      ¿Necesitas ayuda? Escríbenos a <a href="mailto:soporte@emplea-te.com" style="color:#6366f1;">soporte@emplea-te.com</a>
-    </p>
-  `;
-
-  return sendMail({
+  return {
+    ok: true,
+    provider: "supabase-auth",
+    skipped: false,
     to: email,
     subject: `🔐 Restablece tu contraseña en Emplea-TE`,
-    html: layout("Recuperación de Cuenta", body),
-  });
+    name,
+  };
 }
 // Coloca esta función cerca de las otras exportadas (por ejemplo, después de sendApplicationConfirmation)
 export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }) {

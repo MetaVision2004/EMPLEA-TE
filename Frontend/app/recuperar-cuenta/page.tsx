@@ -14,8 +14,7 @@ export default function RecuperarCuentaPage() {
     setLoading(true);
 
     try {
-      // El backend genera el link con supabaseAdmin y lo envía con Resend.
-      // No usamos supabase.auth.resetPasswordForEmail para evitar el rate limit.
+      // El backend delega el envío del correo a Supabase Auth para evitar SMTP/Gmail.
       const res = await fetch(
         (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000") +
           "/api/email/recuperar",
