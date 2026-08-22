@@ -1,33 +1,44 @@
 import { supabaseAdmin } from "../config/supabase.js";
 
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@supabase.co>";
 
 function getEmailProvider() {
-  return (process.env.EMAIL_PROVIDER || "supabase").toLowerCase();
+  return "supabase-auth";
+}
+
+function escapeHtml(input) {
+  return String(input ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function frontendPath(path) {
+  const normalizedBase = FRONTEND_URL.replace(/\/$/, "");
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
 }
 
 export async function sendMail({ to, subject, html, type = "custom" }) {
   const provider = getEmailProvider();
 
-  if (provider === "supabase" || provider === "supabase-auth") {
-    console.warn(
-      `[email:${type}] El envío se gestiona con Supabase Auth. No se usa SMTP/Gmail para mensajes transaccionales.`
-    );
-
-    return {
-      ok: true,
-      provider: "supabase-auth",
-      skipped: true,
-      to,
-      subject,
-      html,
-      from: FROM,
-    };
-  }
-
-  throw new Error(
-    "No hay un proveedor de emails configurado. Usa Supabase Auth para correos de autenticación o configura un SMTP válido."
+  console.warn(
+    `[email:${type}] Este proyecto usa solo Supabase Auth. El envío de correos transaccionales se gestiona fuera de este servicio.`
   );
+
+  return {
+    ok: true,
+    kind: "supabase-auth",
+    provider,
+    skipped: true,
+    to,
+    subject,
+    html,
+    from: FROM,
+  };
 }
 
 // ─── Shared layout ──────────────────────────────────────────────────────────
@@ -90,8 +101,9 @@ function btn(text, href) {
 // ─── 1. Welcome email ────────────────────────────────────────────────────────
 
 export async function sendWelcome({ name, email }) {
+  const safeName = escapeHtml(name);
   const body = `
-    <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">¡Hola, ${name}! 👋</h2>
+    <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">¡Hola, ${safeName}! 👋</h2>
     <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
       Bienvenido/a a <strong style="color:#6366f1;">Emplea-TE</strong>, la plataforma diseñada para ayudarte a dar
       ese gran primer paso en tu carrera profesional.
@@ -108,7 +120,7 @@ export async function sendWelcome({ name, email }) {
     </div>
 
     <div style="text-align:center;">
-      ${btn("Ir a mi perfil →", process.env.FRONTEND_URL + "/perfil" || "http://localhost:3000/perfil")}
+      ${btn("Ir a mi perfil →", frontendPath("/perfil"))}
     </div>
 
     <p style="color:#9ca3af;font-size:13px;margin:32px 0 0;text-align:center;">
@@ -118,7 +130,7 @@ export async function sendWelcome({ name, email }) {
 
   return sendMail({
     to: email,
-    subject: `¡Bienvenido/a a Emplea-TE, ${name}! 🚀`,
+    subject: `¡Bienvenido/a a Emplea-TE, ${safeName}! 🚀`,
     html: layout("Bienvenido/a a Emplea-TE", body),
   });
 }
@@ -126,16 +138,21 @@ export async function sendWelcome({ name, email }) {
 // ─── 2. Application confirmation ─────────────────────────────────────────────
 
 export async function sendApplicationConfirmation({ name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }) {
+  const safeName = escapeHtml(name);
+  const safeOfertaTitulo = escapeHtml(ofertaTitulo);
+  const safeOfertaEmpresa = escapeHtml(ofertaEmpresa);
+  const safeOfertaCiudad = escapeHtml(ofertaCiudad || "Remoto");
+
   const body = `
     <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">¡Postulación enviada! 🎉</h2>
     <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Hola <strong>${name}</strong>, tu postulación ha sido registrada exitosamente. ¡Mucha suerte!
+      Hola <strong>${safeName}</strong>, tu postulación ha sido registrada exitosamente. ¡Mucha suerte!
     </p>
 
     <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:16px;padding:28px;margin-bottom:28px;border-left:5px solid #6366f1;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;">Oferta a la que aplicaste</p>
-      <p style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1e1b4b;">${ofertaTitulo}</p>
-      <p style="margin:0;font-size:14px;color:#6b7280;">${ofertaEmpresa} &nbsp;·&nbsp; ${ofertaCiudad || "Remoto"}</p>
+      <p style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1e1b4b;">${safeOfertaTitulo}</p>
+      <p style="margin:0;font-size:14px;color:#6b7280;">${safeOfertaEmpresa} &nbsp;·&nbsp; ${safeOfertaCiudad}</p>
     </div>
 
     <div style="background:#f0fdf4;border-radius:12px;padding:20px;margin-bottom:28px;">
@@ -147,13 +164,13 @@ export async function sendApplicationConfirmation({ name, email, ofertaTitulo, o
     </div>
 
     <div style="text-align:center;">
-      ${btn("Ver mis postulaciones →", process.env.FRONTEND_URL + "/postulaciones" || "http://localhost:3000/postulaciones")}
+      ${btn("Ver mis postulaciones →", frontendPath("/postulaciones"))}
     </div>
   `;
 
   return sendMail({
     to: email,
-    subject: `Postulación confirmada: ${ofertaTitulo} en ${ofertaEmpresa} ✅`,
+    subject: `Postulación confirmada: ${safeOfertaTitulo} en ${safeOfertaEmpresa} ✅`,
     html: layout("Confirmación de Postulación", body),
   });
 }
@@ -177,34 +194,38 @@ const ESTADO_MENSAJES = {
 export async function sendStatusChange({ name, email, ofertaTitulo, ofertaEmpresa, nuevoEstado }) {
   const info = ESTADO_INFO[nuevoEstado] || ESTADO_INFO.aplicado;
   const mensaje = ESTADO_MENSAJES[nuevoEstado] || "";
+  const safeName = escapeHtml(name);
+  const safeOfertaTitulo = escapeHtml(ofertaTitulo);
+  const safeOfertaEmpresa = escapeHtml(ofertaEmpresa);
+  const safeMensaje = escapeHtml(mensaje);
 
   const body = `
     <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">Actualización de tu postulación ${info.emoji}</h2>
     <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Hola <strong>${name}</strong>, el estado de una de tus postulaciones ha cambiado.
+      Hola <strong>${safeName}</strong>, el estado de una de tus postulaciones ha cambiado.
     </p>
 
     <div style="background:#f8fafc;border-radius:16px;padding:24px;margin-bottom:20px;">
       <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Oferta</p>
-      <p style="margin:0 0 16px;font-size:18px;font-weight:800;color:#1e1b4b;">${ofertaTitulo}</p>
-      <p style="margin:0 0 16px;font-size:14px;color:#6b7280;">${ofertaEmpresa}</p>
+      <p style="margin:0 0 16px;font-size:18px;font-weight:800;color:#1e1b4b;">${safeOfertaTitulo}</p>
+      <p style="margin:0 0 16px;font-size:14px;color:#6b7280;">${safeOfertaEmpresa}</p>
       <div style="display:inline-block;background:${info.bg};border-radius:50px;padding:10px 22px;">
         <span style="font-size:15px;font-weight:700;color:${info.color};">${info.emoji} &nbsp;${info.label}</span>
       </div>
     </div>
 
     ${mensaje ? `<div style="background:#fffbeb;border-radius:12px;padding:20px;margin-bottom:28px;border-left:4px solid #f59e0b;">
-      <p style="margin:0;color:#92400e;font-size:14px;line-height:1.7;">${mensaje}</p>
+      <p style="margin:0;color:#92400e;font-size:14px;line-height:1.7;">${safeMensaje}</p>
     </div>` : ""}
 
     <div style="text-align:center;">
-      ${btn("Ver mis postulaciones →", process.env.FRONTEND_URL + "/postulaciones" || "http://localhost:3000/postulaciones")}
+      ${btn("Ver mis postulaciones →", frontendPath("/postulaciones"))}
     </div>
   `;
 
   return sendMail({
     to: email,
-    subject: `${info.emoji} Tu postulación en ${ofertaEmpresa}: ${info.label}`,
+    subject: `${info.emoji} Tu postulación en ${safeOfertaEmpresa}: ${info.label}`,
     html: layout("Actualización de Postulación", body),
   });
 }
@@ -212,7 +233,7 @@ export async function sendStatusChange({ name, email, ofertaTitulo, ofertaEmpres
 // ─── 4. Password reset ────────────────────────────────────────────────────────
 
 export async function sendPasswordReset({ name, email, resetLink }) {
-  const redirectTo = resetLink || (process.env.FRONTEND_URL || "http://localhost:3000") + "/nueva-contrasena";
+  const redirectTo = resetLink || frontendPath("/nueva-contrasena");
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
 
   if (error) {
@@ -221,25 +242,31 @@ export async function sendPasswordReset({ name, email, resetLink }) {
 
   return {
     ok: true,
+    kind: "reset",
     provider: "supabase-auth",
     skipped: false,
     to: email,
     subject: `🔐 Restablece tu contraseña en Emplea-TE`,
-    name,
+    name: escapeHtml(name || ""),
   };
 }
-// Coloca esta función cerca de las otras exportadas (por ejemplo, después de sendApplicationConfirmation)
+
 export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }) {
+  const safeName = escapeHtml(name);
+  const safeOfertaTitulo = escapeHtml(ofertaTitulo);
+  const safeOfertaEmpresa = escapeHtml(ofertaEmpresa);
+  const safeOfertaCiudad = escapeHtml(ofertaCiudad || "Remoto");
+
   const body = `
     <h2 style="margin:0 0 8px;font-size:26px;color:#1e1b4b;">Nueva oferta disponible 🔔</h2>
     <p style="color:#6b7280;font-size:15px;line-height:1.7;margin:0 0 24px;">
-      Hola <strong>${name}</strong>, hemos publicado una nueva oferta que podría interesarte.
+      Hola <strong>${safeName}</strong>, hemos publicado una nueva oferta que podría interesarte.
     </p>
 
     <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:16px;padding:24px;margin-bottom:20px;border-left:5px solid #6366f1;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;">Oferta destacada</p>
-      <p style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1e1b4b;">${ofertaTitulo}</p>
-      <p style="margin:0;font-size:14px;color:#6b7280;">${ofertaEmpresa} &nbsp;·&nbsp; ${ofertaCiudad || "Remoto"}</p>
+      <p style="margin:0 0 4px;font-size:20px;font-weight:800;color:#1e1b4b;">${safeOfertaTitulo}</p>
+      <p style="margin:0;font-size:14px;color:#6b7280;">${safeOfertaEmpresa} &nbsp;·&nbsp; ${safeOfertaCiudad}</p>
     </div>
 
     <div style="background:#f0f9ff;border-radius:12px;padding:18px;margin-bottom:28px;">
@@ -249,7 +276,7 @@ export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, o
     </div>
 
     <div style="text-align:center;">
-      ${btn("Ver oferta →", (process.env.FRONTEND_URL || "http://localhost:3000") + "/ofertas")}
+      ${btn("Ver oferta →", frontendPath("/ofertas"))}
     </div>
 
     <p style="color:#9ca3af;font-size:13px;margin:24px 0 0;text-align:center;">
@@ -259,7 +286,7 @@ export async function sendNewOffer({ name, email, ofertaTitulo, ofertaEmpresa, o
 
   return sendMail({
     to: email,
-    subject: `💼 Nueva oferta: ${ofertaTitulo} en ${ofertaEmpresa}`,
+    subject: `💼 Nueva oferta: ${safeOfertaTitulo} en ${safeOfertaEmpresa}`,
     html: layout("Nueva Oferta en Emplea-TE", body),
   });
 }
