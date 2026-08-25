@@ -533,7 +533,12 @@ export default function AdminOfertasPage() {
       </div>
 
       {/* CONTENIDO PRINCIPAL: LISTA O AGRUPADOS */}
-      {ofertasFiltradas.length === 0 ? (
+      {ofertas.length === 0 ? (
+        <div className="card text-center py-12">
+          <p className="text-ink/60 font-medium">Todavía no hay ofertas registradas.</p>
+          <p className="text-ink/50 text-sm mt-1">Crea la primera oferta con el botón “Nueva Oferta”.</p>
+        </div>
+      ) : ofertasFiltradas.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-ink/60 font-medium">No se encontraron ofertas con los filtros aplicados.</p>
           <button
