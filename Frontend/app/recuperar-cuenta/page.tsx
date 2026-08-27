@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function RecuperarCuentaPage() {
   const [email, setEmail] = useState("");
@@ -14,21 +15,12 @@ export default function RecuperarCuentaPage() {
     setLoading(true);
 
     try {
-      // El backend delega el envío del correo a Supabase Auth para evitar SMTP/Gmail.
-      const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000") +
-          "/api/email/recuperar",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        }
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        { redirectTo: `${window.location.origin}/nueva-contrasena` }
       );
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Error al enviar el correo.");
-      }
+      if (resetError) throw resetError;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Error desconocido.";
       setError(message);
