@@ -51,8 +51,8 @@ export default function Nav() {
   const linkClass = (href: string) =>
     `text-sm transition-colors ${
       pathname === href
-        ? "text-white font-semibold underline underline-offset-4"
-        : "text-white/80 hover:text-white"
+        ? "text-primary-700 font-semibold"
+        : "text-ink/65 hover:text-primary-700"
     }`;
 
   // Enlaces según el modo activo
@@ -70,20 +70,29 @@ export default function Nav() {
   const activeLinks = userIsAdmin ? adminLinks : publicLinks;
 
   return (
-    <header className="bg-primary-500 sticky top-0 z-30 shadow-md">
-      <nav className="max-w-5xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 border-b border-primary-100 bg-white/95 shadow-sm backdrop-blur">
+      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3 sm:px-6">
         {/* LOGO & BADGE DE ROL */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="font-display font-bold text-lg text-white tracking-tight flex items-center gap-1">
-            Emplea<span className="text-accent-300">-TE</span>
+          <Link href="/" className="flex items-center gap-2 text-primary-700">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-700 to-primary-500 ring-1 ring-primary-100 shadow-sm">
+              <svg viewBox="0 0 40 40" aria-hidden="true" className="h-8 w-8">
+                <path d="M8 24 16 32 33 10" fill="none" stroke="#67e8f9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
+                <path d="m18 25 15-15" fill="none" stroke="#f6c453" strokeLinecap="round" strokeWidth="3" />
+                <path d="m31 7 1.5 3.5L36 12l-3.5 1.5L31 17l-1.5-3.5L26 12l3.5-1.5L31 7Z" fill="#f6c453" />
+              </svg>
+            </span>
+            <span className="font-display font-bold text-lg tracking-tight">
+              Emplea<span className="text-accent-500">-TE</span>
+            </span>
           </Link>
 
           {/* Badge de rol (visible si logged in) */}
           {user && (
             <span className={`hidden sm:inline-flex px-2.5 py-1 rounded-xl text-xs font-medium border ${
               userIsAdmin
-                ? "bg-accent-500/20 text-white border-accent-300/30"
-                : "bg-white/10 text-white/90 border-white/10"
+                ? "bg-accent-50 text-accent-700 border-accent-200"
+                : "bg-primary-50 text-primary-700 border-primary-100"
             }`}>
               {userIsAdmin ? "🔒 Administrador" : "🌐 Candidato"}
             </span>
@@ -100,11 +109,11 @@ export default function Nav() {
                 </Link>
               ))}
 
-              <div className="h-4 w-px bg-white/20" />
+              <div className="h-4 w-px bg-primary-100" />
 
               {/* Tag Usuario Autenticado */}
               <span
-                className="text-xs text-white/90 bg-white/10 px-2.5 py-1 rounded-lg max-w-[140px] truncate"
+                className="max-w-[140px] truncate rounded-lg bg-primary-50 px-2.5 py-1 text-xs text-primary-700"
                 title={user.email}
               >
                 👤 {user.email?.split("@")[0]}
@@ -113,7 +122,7 @@ export default function Nav() {
               {/* Botón Logout */}
               <button
                 onClick={handleLogout}
-                className="text-xs bg-accent-500/20 text-white border border-accent-300/30 px-3 py-1.5 rounded-xl hover:bg-accent-500 transition-colors font-medium"
+                className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-1.5 text-xs font-medium text-accent-700 transition-colors hover:bg-accent-500 hover:text-white"
               >
                 Cerrar sesión
               </button>
@@ -125,7 +134,7 @@ export default function Nav() {
               </Link>
               <Link
                 href="/login"
-                className="text-sm bg-white/10 text-white px-4 py-1.5 rounded-xl hover:bg-white/20 transition-colors font-medium"
+                className="rounded-xl border border-primary-200 px-4 py-1.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
               >
                 Ingresar
               </Link>
@@ -141,7 +150,7 @@ export default function Nav() {
 
         {/* BOTÓN MENÚ MÓVIL */}
         <button
-          className="md:hidden text-white p-2 -mr-2"
+          className="-mr-2 p-2 text-primary-700 md:hidden"
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -158,9 +167,9 @@ export default function Nav() {
 
       {/* PANEL MÓVIL */}
       {open && (
-        <div className="md:hidden bg-primary-600 px-6 pb-4 pt-2 flex flex-col gap-3 border-t border-white/10">
+        <div className="flex flex-col gap-3 border-t border-primary-100 bg-white px-6 pb-4 pt-2 md:hidden">
           {user && (
-            <div className="flex items-center gap-2 mb-2 p-2 bg-primary-700/60 rounded-xl text-xs">
+            <div className="mb-2 flex items-center gap-2 rounded-xl bg-primary-50 p-2 text-xs">
               <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
                 userIsAdmin ? "bg-accent-500 text-white" : "bg-white text-primary-600"
               }`}>
@@ -181,14 +190,14 @@ export default function Nav() {
                   {link.label}
                 </Link>
               ))}
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs text-white/80">
+              <div className="flex items-center justify-between border-t border-primary-100 pt-2 text-xs text-ink/60">
                 <span>{user.email}</span>
                 <button
                   onClick={() => {
                     handleLogout();
                     setOpen(false);
                   }}
-                  className="text-accent-300 font-bold hover:underline"
+                  className="font-bold text-accent-600 hover:underline"
                 >
                   Cerrar sesión
                 </button>
@@ -205,14 +214,14 @@ export default function Nav() {
               </Link>
               <Link
                 href="/login"
-                className="text-sm text-white font-medium"
+                className="text-sm font-medium text-primary-700"
                 onClick={() => setOpen(false)}
               >
                 Ingresar
               </Link>
               <Link
                 href="/registro"
-                className="text-sm text-accent-300 font-medium"
+                className="text-sm font-medium text-accent-600"
                 onClick={() => setOpen(false)}
               >
                 Registrarse

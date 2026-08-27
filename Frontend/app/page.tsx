@@ -20,16 +20,15 @@ const PASOS = [
 
 export default function Home() {
   return (
-    <div>
-      {/* HERO */}
-      <section className="grid md:grid-cols-2 gap-10 items-center py-10 md:py-16">
+    <div className="space-y-16 pb-6 sm:space-y-24">
+      <section className="grid items-center gap-12 pt-6 md:grid-cols-[1.05fr_0.95fr] md:gap-16 md:pt-12">
         <div>
-          <p className="eyebrow mb-3">Tu primer paso cuenta</p>
-          <h1 className="text-4xl md:text-5xl font-display font-bold leading-tight mb-5">
+          <p className="eyebrow mb-4">Tu primer paso cuenta</p>
+          <h1 className="mb-6 max-w-2xl text-4xl font-display font-bold leading-[1.08] tracking-tight md:text-6xl">
             Del último examen a tu{" "}
-            <span className="text-primary-500">primer empleo</span>.
+            <span className="text-primary-500">primer empleo.</span>
           </h1>
-          <p className="text-ink/70 text-lg mb-8 max-w-md">
+          <p className="mb-8 max-w-xl text-lg leading-8 text-ink/70">
             Emplea-TE acompaña a quienes buscan trabajo por primera vez: arma
             tu perfil, postúlate a ofertas hechas para ti y da seguimiento a
             cada proceso en un solo lugar.
@@ -44,78 +43,73 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Ilustración: escalera del primer paso */}
-        <div className="flex justify-center md:justify-end">
-          <svg
-            viewBox="0 0 320 240"
-            className="w-full max-w-sm"
-            xmlns="http://www.w3.org/2000/svg"
-            role="img"
-            aria-label="Ilustración de una escalera ascendente que representa el progreso hacia el primer empleo"
-          >
-            <rect x="10" y="190" width="70" height="40" rx="8" fill="#EAF3F1" />
-            <rect x="90" y="150" width="70" height="80" rx="8" fill="#CFE3DF" />
-            <rect x="170" y="105" width="70" height="125" rx="8" fill="#A3C8C1" />
-            <rect x="250" y="55" width="60" height="175" rx="8" fill="#0E4F45" />
-            <circle cx="280" cy="35" r="16" fill="#F0552F" />
-            <path
-              d="M280 51 v14 M280 58 l-10 10 M280 58 l10 10 M280 65 l-8 12 M280 65 l8 12"
-              stroke="#F0552F"
-              strokeWidth="4"
-              strokeLinecap="round"
-              fill="none"
-            />
-          </svg>
+        <div className="relative overflow-hidden rounded-[2rem] border border-primary-100 bg-white p-6 shadow-soft sm:p-8">
+          <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full border-[24px] border-primary-100/70" />
+          <div className="absolute -bottom-24 -left-16 h-64 w-64 rounded-full border-[18px] border-accent-100/70" />
+          <div className="relative z-10">
+            <div className="mb-8 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Tu ruta profesional</span>
+              <span className="rounded-full bg-growth-50 px-3 py-1 text-xs font-semibold text-growth-600">En marcha</span>
+            </div>
+            <div className="mx-auto mb-8 flex h-32 w-32 items-center justify-center rounded-[2rem] bg-primary-700 shadow-lift ring-8 ring-primary-50 sm:h-40 sm:w-40">
+              <svg viewBox="0 0 100 100" aria-hidden="true" className="h-28 w-28 sm:h-36 sm:w-36">
+                <path d="M20 58 39 78 82 25" fill="none" stroke="#67e8f9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="11" />
+                <path d="m43 62 39-37" fill="none" stroke="#f6c453" strokeLinecap="round" strokeWidth="7" />
+                <path d="m82 16 4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z" fill="#f6c453" />
+              </svg>
+            </div>
+            <div className="grid grid-cols-3 gap-2 border-t border-primary-100 pt-5 text-center">
+              <div><p className="font-display text-lg font-bold text-primary-700">01</p><p className="text-[11px] text-ink/55">Perfil</p></div>
+              <div><p className="font-display text-lg font-bold text-primary-700">02</p><p className="text-[11px] text-ink/55">Ofertas</p></div>
+              <div><p className="font-display text-lg font-bold text-accent-500">03</p><p className="text-[11px] text-ink/55">Avanza</p></div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ESTADÍSTICAS */}
-      <section className="grid grid-cols-3 gap-4 py-6 border-y border-primary-100">
+      <section className="grid grid-cols-1 divide-y divide-primary-100 border-y border-primary-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="text-center">
-          <p className="text-2xl md:text-3xl font-display font-bold text-primary-500">100%</p>
-          <p className="text-xs md:text-sm text-ink/60">Gratis para postulantes</p>
+          <p className="py-5 font-display text-3xl font-bold text-primary-500">100%</p>
+          <p className="-mt-4 pb-5 text-xs text-ink/60">Gratis para postulantes</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl md:text-3xl font-display font-bold text-primary-500">0</p>
-          <p className="text-xs md:text-sm text-ink/60">Experiencia previa requerida</p>
+          <p className="py-5 font-display text-3xl font-bold text-primary-500">0</p>
+          <p className="-mt-4 pb-5 text-xs text-ink/60">Experiencia previa requerida</p>
         </div>
         <div className="text-center">
-          <p className="text-2xl md:text-3xl font-display font-bold text-primary-500">1</p>
-          <p className="text-xs md:text-sm text-ink/60">Lugar para todo tu proceso</p>
+          <p className="py-5 font-display text-3xl font-bold text-primary-500">1</p>
+          <p className="-mt-4 pb-5 text-xs text-ink/60">Lugar para todo tu proceso</p>
         </div>
       </section>
 
-      {/* CÓMO FUNCIONA */}
-      <section className="py-16">
-        <h2 className="text-2xl font-display font-bold text-center mb-10">
-          Cómo funciona
-        </h2>
-        <div className="grid md:grid-cols-3 gap-6">
+      <section>
+        <div className="mb-10 flex items-end justify-between gap-5">
+          <div><p className="eyebrow mb-2">El proceso</p><h2 className="text-3xl font-display font-bold text-ink">Cómo funciona</h2></div>
+          <span className="hidden text-sm text-ink/50 sm:block">Tres pasos para empezar</span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
           {PASOS.map((paso, i) => (
             <div
               key={paso.numero}
-              className="card"
-              style={{ marginTop: i === 0 ? "2rem" : i === 1 ? "1rem" : "0" }}
+              className={`rounded-2xl border p-6 ${i === 2 ? "border-accent-200 bg-accent-50/60" : "border-primary-100 bg-white"}`}
             >
-              <span className="font-display text-3xl font-bold text-primary-100">
-                {paso.numero}
-              </span>
-              <h3 className="font-semibold text-lg mt-2 mb-1">{paso.titulo}</h3>
-              <p className="text-sm text-ink/60">{paso.texto}</p>
+              <span className="font-display text-sm font-bold text-accent-500">{paso.numero}</span>
+              <h3 className="mb-2 mt-8 text-xl font-semibold">{paso.titulo}</h3>
+              <p className="text-sm leading-6 text-ink/60">{paso.texto}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA FINAL */}
-      <section className="bg-primary-500 rounded-2xl px-8 py-12 text-center mb-6">
-        <h2 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">
+      <section className="relative overflow-hidden rounded-[2rem] bg-primary-700 px-6 py-12 text-center sm:px-10">
+        <div className="absolute -right-16 -top-24 h-64 w-64 rounded-full border-[28px] border-white/10" />
+        <h2 className="relative mb-3 text-2xl font-display font-bold text-white md:text-3xl">
           Tu primer empleo empieza con un perfil.
         </h2>
-        <p className="text-white/80 mb-6 max-w-md mx-auto">
+        <p className="relative mx-auto mb-6 max-w-md text-white/75">
           Crea tu cuenta hoy y postúlate a tu primera oportunidad en minutos.
         </p>
-        <Link href="/registro" className="btn-primary bg-accent-500">
+        <Link href="/registro" className="btn-primary relative bg-accent-500 hover:bg-accent-400">
           Empezar ahora
         </Link>
       </section>

@@ -127,7 +127,13 @@ create policy "insert_propias_postulaciones" on postulaciones
   for insert with check (auth.uid() = usuario_id);
 
 -- Ofertas y recursos quedan públicos de lectura (no requieren RLS restrictivo)
--- pero puedes activarlo igual si quieres controlar quién inserta ofertas.
+-- Las ofertas activas deben poder consultarse sin iniciar sesión.
+alter table ofertas enable row level security;
+drop policy if exists "ofertas_activas_publicas" on ofertas;
+create policy "ofertas_activas_publicas" on ofertas
+  for select using (activa = true);
+
+-- El panel administrativo escribe con la service_role desde el backend.
 
 -- ============================================
 -- Datos de prueba (opcional, para probar el MVP)

@@ -31,11 +31,9 @@ export default function OfertasPage() {
 
       if (!currentUser) {
         setUser(null);
-        setLoading(false);
-        return;
+      } else {
+        setUser({ id: currentUser.id, email: currentUser.email });
       }
-
-      setUser({ id: currentUser.id, email: currentUser.email });
 
       const { data, error } = await supabase
         .from("ofertas")
@@ -102,33 +100,8 @@ export default function OfertasPage() {
     );
   }
 
-  // GUARDA DE SEGURIDAD: Usuario no autenticado
-  if (!user) {
-    return (
-      <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
-        <div className="w-12 h-12 rounded-full bg-primary-50 text-primary-500 flex items-center justify-center mx-auto text-2xl">
-          🔒
-        </div>
-        <h2 className="text-xl font-display font-bold text-ink">
-          Inicio de sesión requerido
-        </h2>
-        <p className="text-ink/70 text-sm">
-          Debes iniciar sesión con tu cuenta de candidato para ver la lista de empleos y postularte a las vacantes.
-        </p>
-        <div className="pt-2 flex justify-center gap-3">
-          <Link href="/login" className="btn-primary">
-            Ingresar a mi cuenta
-          </Link>
-          <Link href="/registro" className="btn-outline">
-            Crear cuenta gratis
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   // GUARDA DE SEGURIDAD: Los administradores no acceden a esta sección
-  if (isAdmin(user.email)) {
+  if (user && isAdmin(user.email)) {
     return (
       <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
         <div className="w-12 h-12 rounded-full bg-accent-50 text-accent-500 flex items-center justify-center mx-auto text-2xl">
@@ -202,7 +175,7 @@ export default function OfertasPage() {
               <p className="text-sm text-ink/80 mb-4">{oferta.descripcion}</p>
             </div>
             <button className="btn-primary self-start text-xs" onClick={() => postular(oferta.id)}>
-              Postularme
+              {user ? "Postularme" : "Iniciar sesión para postularme"}
             </button>
           </div>
         ))}
