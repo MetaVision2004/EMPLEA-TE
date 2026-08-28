@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 const PASOS = [
   {
@@ -51,12 +52,8 @@ export default function Home() {
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Tu ruta profesional</span>
               <span className="rounded-full bg-growth-50 px-3 py-1 text-xs font-semibold text-growth-600">En marcha</span>
             </div>
-            <div className="mx-auto mb-8 flex h-32 w-32 items-center justify-center rounded-[2rem] bg-primary-700 shadow-lift ring-8 ring-primary-50 sm:h-40 sm:w-40">
-              <svg viewBox="0 0 100 100" aria-hidden="true" className="h-28 w-28 sm:h-36 sm:w-36">
-                <path d="M20 58 39 78 82 25" fill="none" stroke="#67e8f9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="11" />
-                <path d="m43 62 39-37" fill="none" stroke="#f6c453" strokeLinecap="round" strokeWidth="7" />
-                <path d="m82 16 4 10 10 4-10 4-4 10-4-10-10-4 10-4 4-10Z" fill="#f6c453" />
-              </svg>
+            <div className="logo-stage mx-auto mb-8 flex min-h-40 w-full max-w-sm items-center justify-center overflow-hidden rounded-[2rem] border border-primary-100/80 bg-gradient-to-br from-primary-50 via-white to-accent-50 p-3 shadow-lift ring-8 ring-primary-50/70 sm:min-h-48 sm:p-4">
+              <BrandLogo className="h-auto w-full max-w-[31rem]" />
             </div>
             <div className="grid grid-cols-3 gap-2 border-t border-primary-100 pt-5 text-center">
               <div><p className="font-display text-lg font-bold text-primary-700">01</p><p className="text-[11px] text-ink/55">Perfil</p></div>

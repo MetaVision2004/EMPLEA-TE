@@ -8,31 +8,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Verde-tinta profundo: confianza, estabilidad, "raíz" del proyecto
+        // Azul marino y turquesa del logo: confianza, claridad y avance
         primary: {
-          50: "#EAF3F1",
-          100: "#CFE3DF",
-          200: "#A3C8C1",
-          300: "#71A89F",
-          400: "#457F76",
-          500: "#0E4F45", // base
-          600: "#0C443B",
-          700: "#0A362F",
-          800: "#082A25",
-          900: "#061F1B",
+          50: "#EFFBFC",
+          100: "#D7F2F4",
+          200: "#B0E4E9",
+          300: "#78CFD8",
+          400: "#43B5C3",
+          500: "#1B7894", // base
+          600: "#176681",
+          700: "#123F69",
+          800: "#0D3155",
+          900: "#08213C",
         },
-        // Coral cálido: la chispa del primer paso, usado con moderación en CTAs
+        // Dorado del logo: energía y llamados a la acción
         accent: {
-          50: "#FFEEE9",
-          100: "#FFD6C9",
-          200: "#FFB49B",
-          300: "#FF8C69",
-          400: "#FF7350",
-          500: "#F0552F", // base
-          600: "#D4441F",
-          700: "#AC3618",
-          800: "#832912",
-          900: "#5C1C0C",
+          50: "#FFF9E6",
+          100: "#FCEFC2",
+          200: "#F7DF8B",
+          300: "#F0C85A",
+          400: "#E7B638",
+          500: "#D59D22", // base
+          600: "#B98216",
+          700: "#946516",
+          800: "#704B12",
+          900: "#4D330D",
         },
         // Verde señal: estados positivos (oferta / contratado)
         growth: {
@@ -40,16 +40,16 @@ const config: Config = {
           500: "#1FA97A",
           600: "#178860",
         },
-        paper: "#F5F7F5",
-        ink: "#132420",
+        paper: "#F5FAFA",
+        ink: "#142A3D",
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],
         sans: ["var(--font-body)", "sans-serif"],
       },
       boxShadow: {
-        soft: "0 2px 10px -2px rgba(19, 36, 32, 0.08), 0 8px 24px -8px rgba(19, 36, 32, 0.10)",
-        lift: "0 12px 32px -8px rgba(19, 36, 32, 0.22)",
+        soft: "0 2px 10px -2px rgba(20, 42, 61, 0.08), 0 8px 24px -8px rgba(20, 42, 61, 0.10)",
+        lift: "0 12px 32px -8px rgba(20, 42, 61, 0.22)",
       },
       borderRadius: {
         xl: "0.85rem",

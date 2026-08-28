@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [magicSent, setMagicSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const translateError = (msg: string) => {
@@ -28,6 +29,26 @@ export default function LoginPage() {
       return "Demasiados intentos fallidos. Por favor espera unos minutos e intenta de nuevo.";
     }
     return msg;
+  };
+
+  const handleMagicLink = async () => {
+    setError(null);
+    setMagicSent(false);
+    if (!email.trim()) {
+      setError("Ingresa tu correo electrónico para recibir el enlace.");
+      return;
+    }
+    setLoading(true);
+    const { error: magicError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?type=magiclink` },
+    });
+    setLoading(false);
+    if (magicError) {
+      setError(translateError(magicError.message));
+      return;
+    }
+    setMagicSent(true);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -110,6 +131,10 @@ export default function LoginPage() {
         <button type="submit" className="btn-primary w-full text-sm py-2.5" disabled={loading}>
           {loading ? "Verificando credenciales..." : "Ingresar"}
         </button>
+        <button type="button" onClick={handleMagicLink} className="btn-outline w-full text-sm py-2.5" disabled={loading}>
+          Enviarme un Magic Link
+        </button>
+        {magicSent && <p className="rounded-xl border border-growth-500/30 bg-growth-50 p-3 text-xs font-medium text-growth-600">Revisa tu correo: te enviamos un enlace seguro para entrar.</p>}
       </form>
 
       <div className="pt-3 border-t border-primary-50 text-center">

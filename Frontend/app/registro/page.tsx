@@ -54,6 +54,7 @@ export default function RegistroPage() {
       password,
       options: {
         data: { nombre: nombre.trim() },
+        emailRedirectTo: `${window.location.origin}/auth/callback?type=signup`,
       },
     });
 

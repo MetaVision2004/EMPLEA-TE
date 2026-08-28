@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "Emplea-TE",
   description: "Plataforma de apoyo para personas en su primer trabajo",
   icons: {
-    icon: "/emplea-te-logo.jpg",
+    icon: "/emplea-te-logo.svg",
   },
 };
 

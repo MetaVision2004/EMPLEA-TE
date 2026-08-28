@@ -5,7 +5,7 @@
 @layer base {
   body {
     @apply bg-paper text-ink;
-    background-image: radial-gradient(rgba(14, 79, 69, 0.07) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(18, 63, 105, 0.07) 1px, transparent 1px);
     background-size: 24px 24px;
   }
   h1, h2, h3 {

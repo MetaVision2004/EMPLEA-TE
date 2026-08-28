@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdmin } from "@/lib/auth";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function Nav() {
   const pathname = usePathname();
@@ -75,16 +76,7 @@ export default function Nav() {
         {/* LOGO & BADGE DE ROL */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 text-primary-700">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary-700 to-primary-500 ring-1 ring-primary-100 shadow-sm">
-              <svg viewBox="0 0 40 40" aria-hidden="true" className="h-8 w-8">
-                <path d="M8 24 16 32 33 10" fill="none" stroke="#67e8f9" strokeLinecap="round" strokeLinejoin="round" strokeWidth="5" />
-                <path d="m18 25 15-15" fill="none" stroke="#f6c453" strokeLinecap="round" strokeWidth="3" />
-                <path d="m31 7 1.5 3.5L36 12l-3.5 1.5L31 17l-1.5-3.5L26 12l3.5-1.5L31 7Z" fill="#f6c453" />
-              </svg>
-            </span>
-            <span className="font-display font-bold text-lg tracking-tight">
-              Emplea<span className="text-accent-500">-TE</span>
-            </span>
+            <BrandLogo className="h-12 w-[9rem] sm:h-14 sm:w-[10.5rem]" />
           </Link>
 
           {/* Badge de rol (visible si logged in) */}
