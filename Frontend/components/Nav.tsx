@@ -61,10 +61,13 @@ export default function Nav() {
     { href: "/ofertas", label: "Ofertas" },
     { href: "/postulaciones", label: "Mis postulaciones" },
     { href: "/perfil", label: "Mi perfil" },
+    { href: "/recursos", label: "Recursos" },
+    { href: "/mentoria", label: "Mentoría" },
   ];
 
   const adminLinks = [
     { href: "/admin/ofertas", label: "Panel Admin Ofertas" },
+    { href: "/admin/analitica", label: "Analítica" },
     { href: "/perfil", label: "Mi perfil" },
   ];
 

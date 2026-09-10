@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import ofertasRouter from "./routes/ofertas.js";
 import postulacionesRouter from "./routes/postulaciones.js";
 import emailRouter from "./routes/email.js";
+import statsRouter from "./routes/stats.js";
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/ofertas", ofertasRouter);
 app.use("/api/postulaciones", postulacionesRouter);
 app.use("/api/email", emailRouter);
+app.use("/api/stats", statsRouter);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

@@ -74,8 +74,20 @@ curl http://localhost:4000/api/ofertas
 
 ## 6. Próximos pasos sugeridos
 
-- [ ] Agregar página de administración de ofertas (para que empresas/staff publiquen)
-- [ ] Agregar generador de CV en PDF a partir del perfil
-- [ ] Agregar sección de recursos educativos (tabla `recursos` ya existe en el schema)
-- [ ] Agregar mentoría (chat o agenda con voluntarios)
-- [ ] Analítica básica: cuántos perfiles completos, cuántas postulaciones a entrevista
+- [x] Página de administración de ofertas con CRUD, activación/desactivación, validación y acceso por rol
+- [x] Generador de CV en PDF a partir del perfil y experiencias
+- [x] Sección de recursos educativos con filtros y progreso por usuario
+- [x] Kanban de postulaciones con drag-and-drop, notas inline y filtros
+- [x] Agregar mentoría con agenda de voluntarios
+- [x] Analítica básica: perfiles completos y postulaciones en entrevista
+
+### Roles y cambios de esquema
+
+El panel de ofertas acepta los emails administrativos existentes o usuarios cuyo
+`app_metadata.role`/`user_metadata.role` sea `staff` o `empresa`. El backend exige
+un Bearer token de Supabase para listar todas las ofertas o modificarlas; puedes
+personalizar los emails con `ADMIN_EMAILS` separados por comas.
+
+Después de actualizar el proyecto, ejecuta de nuevo las secciones nuevas de
+`docs/schema.sql` para crear `recursos_completados`, `mentores`,
+`sesiones_mentoria` y las políticas de progreso y edición de postulaciones.

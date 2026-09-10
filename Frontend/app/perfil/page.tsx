@@ -4,6 +4,54 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { isAdmin } from "@/lib/auth";
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer";
+
+type Experiencia = {
+  tipo: string;
+  institucion: string | null;
+  cargo: string | null;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+  descripcion: string | null;
+};
+
+const pdfStyles = StyleSheet.create({
+  page: { padding: 40, fontFamily: "Helvetica", color: "#182235" },
+  title: { fontSize: 24, marginBottom: 6 },
+  contact: { fontSize: 10, color: "#526174", marginBottom: 18 },
+  heading: { fontSize: 13, marginTop: 14, marginBottom: 6, color: "#0d6b78" },
+  body: { fontSize: 10, lineHeight: 1.4 },
+  item: { marginBottom: 8 },
+});
+
+function CvDocument({ nombre, ciudad, nivelEducativo, habilidades, experiencias }: {
+  nombre: string;
+  ciudad: string;
+  nivelEducativo: string;
+  habilidades: string;
+  experiencias: Experiencia[];
+}) {
+  return (
+    <Document>
+      <Page size="A4" style={pdfStyles.page}>
+        <Text style={pdfStyles.title}>{nombre || "Mi perfil profesional"}</Text>
+        <Text style={pdfStyles.contact}>{[ciudad, nivelEducativo].filter(Boolean).join(" · ")}</Text>
+        <Text style={pdfStyles.heading}>Perfil</Text>
+        <Text style={pdfStyles.body}>Habilidades: {habilidades || "Por completar"}</Text>
+        <Text style={pdfStyles.heading}>Experiencia y formación</Text>
+        {experiencias.length === 0 ? (
+          <Text style={pdfStyles.body}>Aún no has agregado experiencias.</Text>
+        ) : experiencias.map((experiencia, index) => (
+          <View key={`${experiencia.institucion}-${index}`} style={pdfStyles.item}>
+            <Text style={pdfStyles.body}>{experiencia.cargo || experiencia.tipo} · {experiencia.institucion || "Sin institución"}</Text>
+            <Text style={pdfStyles.body}>{experiencia.fecha_inicio || ""} - {experiencia.fecha_fin || "Actualidad"}</Text>
+            {experiencia.descripcion && <Text style={pdfStyles.body}>{experiencia.descripcion}</Text>}
+          </View>
+        ))}
+      </Page>
+    </Document>
+  );
+}
 
 export default function PerfilPage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -15,6 +63,7 @@ export default function PerfilPage() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [experiencias, setExperiencias] = useState<Experiencia[]>([]);
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -38,6 +87,12 @@ export default function PerfilPage() {
         setNivelEducativo(perfil.nivel_educativo || "");
         setHabilidades((perfil.habilidades || []).join(", "));
       }
+      const { data: experienciasData } = await supabase
+        .from("experiencias")
+        .select("tipo, institucion, cargo, fecha_inicio, fecha_fin, descripcion")
+        .eq("perfil_id", user.id)
+        .order("fecha_inicio", { ascending: false });
+      setExperiencias((experienciasData || []) as Experiencia[]);
       setLoading(false);
     };
     cargarPerfil();
@@ -156,6 +211,13 @@ export default function PerfilPage() {
         <button type="submit" className="btn-primary w-full">
           Guardar perfil
         </button>
+        <PDFDownloadLink
+          document={<CvDocument nombre={nombre} ciudad={ciudad} nivelEducativo={nivelEducativo} habilidades={habilidades} experiencias={experiencias} />}
+          fileName="mi-cv-emplea-te.pdf"
+          className="btn-outline w-full text-center mt-3"
+        >
+          {({ loading: pdfLoading }) => pdfLoading ? "Preparando CV..." : "Descargar CV en PDF"}
+        </PDFDownloadLink>
       </form>
     </div>
   );

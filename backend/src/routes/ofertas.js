@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { supabaseAdmin } from "../config/supabase.js";
 import { sendNewOffer } from "../services/email.js";
+import { requireOfferManager } from "../middleware/offerAccess.js";
 
 const router = Router();
 
@@ -27,7 +28,7 @@ router.get("/", async (req, res) => {
 });
 
 // GET /api/ofertas/all - listar todas las ofertas (activas e inactivas para admin)
-router.get("/all", async (req, res) => {
+router.get("/all", requireOfferManager, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from("ofertas")
     .select("*")
@@ -39,22 +40,32 @@ router.get("/all", async (req, res) => {
 
 // POST /api/ofertas - crear una oferta (uso administrativo)
 // Body: { titulo, empresa, ciudad, ..., notificarUsuarios }  <-- notificarUsuarios: boolean (opcional, default false)
-router.post("/", async (req, res) => {
+router.post("/", requireOfferManager, async (req, res) => {
   const { titulo, empresa, ciudad, modalidad, salario_rango, requisitos, descripcion, activa, notificarUsuarios } = req.body;
 
-  if (!titulo || !empresa) {
-    return res.status(400).json({ error: "titulo y empresa son obligatorios" });
+  const modalidadesValidas = ["presencial", "remoto", "hibrido"];
+  if (typeof titulo !== "string" || titulo.trim().length < 3 || titulo.trim().length > 120) {
+    return res.status(400).json({ error: "El título debe tener entre 3 y 120 caracteres" });
+  }
+  if (typeof empresa !== "string" || empresa.trim().length < 2 || empresa.trim().length > 120) {
+    return res.status(400).json({ error: "La empresa debe tener entre 2 y 120 caracteres" });
+  }
+  if (!modalidadesValidas.includes(modalidad)) {
+    return res.status(400).json({ error: "La modalidad no es válida" });
+  }
+  if (typeof requisitos !== "string" || requisitos.trim().length < 5 || requisitos.trim().length > 2000) {
+    return res.status(400).json({ error: "Los requisitos deben tener entre 5 y 2000 caracteres" });
   }
 
   const { data, error } = await supabaseAdmin
     .from("ofertas")
     .insert({
-      titulo,
-      empresa,
+      titulo: titulo.trim(),
+      empresa: empresa.trim(),
       ciudad: ciudad || "Remoto",
       modalidad: modalidad || "presencial",
       salario_rango: salario_rango || null,
-      requisitos: requisitos || null,
+      requisitos: requisitos.trim(),
       descripcion: descripcion || "",
       activa: activa !== undefined ? activa : true,
     })
@@ -130,7 +141,7 @@ router.post("/", async (req, res) => {
 });
 
 // PUT /api/ofertas/:id - actualizar una oferta existente
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireOfferManager, async (req, res) => {
   const { id } = req.params;
   const { titulo, empresa, ciudad, modalidad, salario_rango, requisitos, descripcion, activa } = req.body;
 
@@ -155,7 +166,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // DELETE /api/ofertas/:id - eliminar una oferta
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireOfferManager, async (req, res) => {
   const { id } = req.params;
 
   const { error } = await supabaseAdmin

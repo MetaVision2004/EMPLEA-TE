@@ -9,6 +9,8 @@ import { isAdmin } from "@/lib/auth";
 type Postulacion = {
   id: string;
   estado: string;
+  notas: string | null;
+  created_at: string;
   ofertas: { titulo: string; empresa: string } | null;
 };
 
@@ -34,6 +36,9 @@ export default function PostulacionesPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string } | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [empresaFiltro, setEmpresaFiltro] = useState("");
+  const [fechaFiltro, setFechaFiltro] = useState("");
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     const cargar = async () => {
@@ -61,7 +66,7 @@ export default function PostulacionesPage() {
 
       const { data } = await supabase
         .from("postulaciones")
-        .select("id, estado, ofertas ( titulo, empresa )")
+        .select("id, estado, notas, created_at, ofertas ( titulo, empresa )")
         .eq("usuario_id", user.id);
 
       if (data) setPostulaciones(data as unknown as Postulacion[]);
@@ -98,6 +103,19 @@ export default function PostulacionesPage() {
 
     setUpdatingId(null);
   };
+
+  const guardarNotas = async (postulacion: Postulacion, notas: string) => {
+    const { error } = await supabase.from("postulaciones").update({ notas }).eq("id", postulacion.id);
+    if (!error) {
+      setPostulaciones((prev) => prev.map((item) => item.id === postulacion.id ? { ...item, notas } : item));
+    }
+  };
+
+  const visibles = postulaciones.filter((postulacion) => {
+    const empresa = postulacion.ofertas?.empresa?.toLowerCase() || "";
+    return (!empresaFiltro || empresa.includes(empresaFiltro.toLowerCase())) &&
+      (!fechaFiltro || postulacion.created_at.slice(0, 10) === fechaFiltro);
+  });
 
   if (loading) {
     return (
@@ -167,11 +185,16 @@ export default function PostulacionesPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-3 mb-4">
+        <input aria-label="Filtrar por empresa" value={empresaFiltro} onChange={(event) => setEmpresaFiltro(event.target.value)} placeholder="Filtrar por empresa" className="input-field mb-0 max-w-xs" />
+        <input aria-label="Filtrar por fecha" type="date" value={fechaFiltro} onChange={(event) => setFechaFiltro(event.target.value)} className="input-field mb-0 max-w-xs" />
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {ESTADOS.map((estado) => {
-          const postulacionesEnEstado = postulaciones.filter((p) => p.estado === estado);
+          const postulacionesEnEstado = visibles.filter((p) => p.estado === estado);
           return (
-            <div key={estado} className="bg-white rounded-2xl shadow-soft p-3.5 border border-primary-50 flex flex-col justify-between">
+            <div key={estado} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedId) { const postulacion = postulaciones.find((item) => item.id === draggedId); if (postulacion) cambiarEstado(postulacion, estado); setDraggedId(null); } }} className="bg-white rounded-2xl shadow-soft p-3.5 border border-primary-50 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3 border-b border-primary-50 pb-2">
                   <h3 className="font-semibold capitalize text-sm text-primary-600">
@@ -186,7 +209,7 @@ export default function PostulacionesPage() {
                   <p className="text-xs text-ink/40 text-center py-4 italic">Sin postulaciones</p>
                 ) : (
                   postulacionesEnEstado.map((p) => (
-                    <div key={p.id} className="border border-primary-100 rounded-xl p-3 mb-2 text-sm bg-paper/40 space-y-1">
+                    <div key={p.id} draggable onDragStart={() => setDraggedId(p.id)} className="border border-primary-100 rounded-xl p-3 mb-2 text-sm bg-paper/40 space-y-1 cursor-grab active:cursor-grabbing">
                       <p className="font-semibold text-ink leading-tight">{p.ofertas?.titulo}</p>
                       <p className="text-xs text-ink/60 mb-2">{p.ofertas?.empresa}</p>
 
@@ -207,6 +230,13 @@ export default function PostulacionesPage() {
                       {updatingId === p.id && (
                         <p className="text-xs text-ink/40 mt-1 animate-pulse">Guardando cambio...</p>
                       )}
+                      <textarea
+                        aria-label={`Notas para ${p.ofertas?.titulo || "postulación"}`}
+                        defaultValue={p.notas || ""}
+                        onBlur={(event) => guardarNotas(p, event.target.value)}
+                        placeholder="Añadir nota..."
+                        className="w-full min-h-16 mt-2 rounded-lg border border-primary-100 bg-white px-2 py-1 text-xs text-ink resize-y"
+                      />
                     </div>
                   ))
                 )}

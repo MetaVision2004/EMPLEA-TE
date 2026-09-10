@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth";
+import { canManageOffers } from "@/lib/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -34,7 +34,7 @@ const INITIAL_FORM: Omit<Oferta, "id"> = {
 };
 
 export default function AdminOfertasPage() {
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string; app_metadata?: { role?: string }; user_metadata?: { role?: string } } | null>(null);
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState<{ tipo: "success" | "error"; texto: string } | null>(null);
@@ -69,7 +69,12 @@ export default function AdminOfertasPage() {
       return;
     }
 
-    setUser({ id: currentUser.id, email: currentUser.email });
+    setUser({
+      id: currentUser.id,
+      email: currentUser.email,
+      app_metadata: { role: currentUser.app_metadata?.role as string | undefined },
+      user_metadata: { role: currentUser.user_metadata?.role as string | undefined },
+    });
 
     const { data, error } = await supabase
       .from("ofertas")
@@ -91,6 +96,14 @@ export default function AdminOfertasPage() {
   const mostrarMensaje = (tipo: "success" | "error", texto: string) => {
     setMensaje({ tipo, texto });
     setTimeout(() => setMensaje(null), 4000);
+  };
+
+  const authHeaders = async (json = false) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return {
+      ...(json ? { "Content-Type": "application/json" } : {}),
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
   };
 
   // Extraer valores únicos para select de ciudades
@@ -181,8 +194,25 @@ export default function AdminOfertasPage() {
   // Guardar (Crear o Actualizar)
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.titulo.trim() || !formData.empresa.trim()) {
-      mostrarMensaje("error", "El título y la empresa son campos obligatorios.");
+    const titulo = formData.titulo.trim();
+    const empresa = formData.empresa.trim();
+    const requisitos = formData.requisitos?.trim() || "";
+    const modalidades = ["presencial", "remoto", "hibrido"];
+
+    if (titulo.length < 3 || titulo.length > 120) {
+      mostrarMensaje("error", "El título debe tener entre 3 y 120 caracteres.");
+      return;
+    }
+    if (empresa.length < 2 || empresa.length > 120) {
+      mostrarMensaje("error", "La empresa debe tener entre 2 y 120 caracteres.");
+      return;
+    }
+    if (!modalidades.includes(formData.modalidad)) {
+      mostrarMensaje("error", "Selecciona una modalidad válida.");
+      return;
+    }
+    if (requisitos.length < 5 || requisitos.length > 2000) {
+      mostrarMensaje("error", "Los requisitos deben tener entre 5 y 2000 caracteres.");
       return;
     }
 
@@ -190,12 +220,12 @@ export default function AdminOfertasPage() {
 
     try {
       const payload = {
-        titulo: formData.titulo,
-        empresa: formData.empresa,
+        titulo,
+        empresa,
         ciudad: formData.ciudad,
         modalidad: formData.modalidad,
         salario_rango: formData.salario_rango || null,
-        requisitos: formData.requisitos || null,
+        requisitos: requisitos || null,
         descripcion: formData.descripcion || null,
         activa: formData.activa,
       };
@@ -204,7 +234,7 @@ export default function AdminOfertasPage() {
       try {
         const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
           method: editingId ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: await authHeaders(true),
           body: JSON.stringify(payload),
         });
         if (response.ok) {
@@ -254,7 +284,7 @@ export default function AdminOfertasPage() {
       try {
         const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: await authHeaders(true),
           body: JSON.stringify({ activa: nuevoEstado }),
         });
         if (response.ok) success = true;
@@ -285,6 +315,7 @@ export default function AdminOfertasPage() {
       try {
         const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
           method: "DELETE",
+          headers: await authHeaders(),
         });
         if (response.ok) success = true;
       } catch {}
@@ -339,7 +370,7 @@ export default function AdminOfertasPage() {
   }
 
   // GUARDA DE SEGURIDAD: Usuario autenticado pero NO es administrador
-  if (!isAdmin(user.email)) {
+  if (!canManageOffers(user)) {
     return (
       <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
         <div className="w-12 h-12 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto text-2xl">

@@ -43,9 +43,29 @@ export default function OfertasPage() {
 
       if (!error && data) setOfertas(data as Oferta[]);
       setLoading(false);
+
+      const refrescarOfertas = async () => {
+        const { data: updated } = await supabase
+          .from("ofertas")
+          .select("*")
+          .eq("activa", true)
+          .order("created_at", { ascending: false });
+        if (updated) setOfertas(updated as Oferta[]);
+      };
+
+      const intervalo = window.setInterval(refrescarOfertas, 30000);
+      window.addEventListener("focus", refrescarOfertas);
+
+      return () => {
+        window.clearInterval(intervalo);
+        window.removeEventListener("focus", refrescarOfertas);
+      };
     };
 
-    verificarYSincronizar();
+    const cleanup = verificarYSincronizar();
+    return () => {
+      cleanup.then((unsubscribe) => unsubscribe?.());
+    };
   }, []);
 
   const postular = async (ofertaId: string) => {

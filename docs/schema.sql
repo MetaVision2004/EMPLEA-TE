@@ -72,6 +72,33 @@ create table if not exists recursos (
   nivel text
 );
 
+create table if not exists recursos_completados (
+  usuario_id uuid references auth.users(id) on delete cascade,
+  recurso_id uuid references recursos(id) on delete cascade,
+  completed_at timestamp with time zone default now(),
+  primary key (usuario_id, recurso_id)
+);
+
+-- Mentores voluntarios y solicitudes de agenda
+create table if not exists mentores (
+  id uuid default gen_random_uuid() primary key,
+  nombre text not null,
+  especialidad text not null,
+  bio text,
+  disponible boolean default true,
+  created_at timestamp with time zone default now()
+);
+
+create table if not exists sesiones_mentoria (
+  id uuid default gen_random_uuid() primary key,
+  mentor_id uuid references mentores(id) on delete cascade,
+  usuario_id uuid references auth.users(id) on delete cascade,
+  fecha timestamp with time zone not null,
+  tema text not null,
+  estado text default 'solicitada' check (estado in ('solicitada', 'confirmada', 'cancelada')),
+  created_at timestamp with time zone default now()
+);
+
 -- ============================================
 -- Row Level Security (RLS)
 -- ============================================
@@ -79,6 +106,10 @@ create table if not exists recursos (
 alter table perfiles enable row level security;
 alter table experiencias enable row level security;
 alter table postulaciones enable row level security;
+alter table recursos enable row level security;
+alter table recursos_completados enable row level security;
+alter table mentores enable row level security;
+alter table sesiones_mentoria enable row level security;
 
 -- Perfiles: cada quien ve y edita solo el suyo
 drop policy if exists "select_propio_perfil" on perfiles;
@@ -125,6 +156,37 @@ create policy "select_propias_postulaciones" on postulaciones
 
 create policy "insert_propias_postulaciones" on postulaciones
   for insert with check (auth.uid() = usuario_id);
+
+create policy "update_propias_postulaciones" on postulaciones
+  for update using (auth.uid() = usuario_id) with check (auth.uid() = usuario_id);
+
+create policy "recursos_publicos" on recursos
+  for select using (true);
+
+create policy "select_recursos_completados" on recursos_completados
+  for select using (auth.uid() = usuario_id);
+
+create policy "insert_recursos_completados" on recursos_completados
+  for insert with check (auth.uid() = usuario_id);
+
+create policy "delete_recursos_completados" on recursos_completados
+  for delete using (auth.uid() = usuario_id);
+
+drop policy if exists "mentores_disponibles_publicos" on mentores;
+create policy "mentores_disponibles_publicos" on mentores
+  for select using (disponible = true);
+
+drop policy if exists "select_propias_sesiones" on sesiones_mentoria;
+create policy "select_propias_sesiones" on sesiones_mentoria
+  for select using (auth.uid() = usuario_id);
+
+drop policy if exists "insert_propias_sesiones" on sesiones_mentoria;
+create policy "insert_propias_sesiones" on sesiones_mentoria
+  for insert with check (auth.uid() = usuario_id);
+
+drop policy if exists "update_propias_sesiones" on sesiones_mentoria;
+create policy "update_propias_sesiones" on sesiones_mentoria
+  for update using (auth.uid() = usuario_id) with check (auth.uid() = usuario_id);
 
 -- Ofertas y recursos quedan públicos de lectura (no requieren RLS restrictivo)
 -- Las ofertas activas deben poder consultarse sin iniciar sesión.
