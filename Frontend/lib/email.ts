@@ -7,6 +7,7 @@
  */
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { supabase } from "./supabaseClient";
 
 type WelcomePayload = {
   name: string;
@@ -31,9 +32,13 @@ type EstadoPayload = {
 
 async function post(path: string, body: object) {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
     await fetch(`${API}/api/email/${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
       body: JSON.stringify(body),
     });
   } catch {

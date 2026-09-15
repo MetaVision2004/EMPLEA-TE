@@ -56,6 +56,13 @@ router.post("/", requireOfferManager, async (req, res) => {
   if (typeof requisitos !== "string" || requisitos.trim().length < 5 || requisitos.trim().length > 2000) {
     return res.status(400).json({ error: "Los requisitos deben tener entre 5 y 2000 caracteres" });
   }
+  if (salario_rango !== undefined && salario_rango !== null &&
+      (typeof salario_rango !== "string" || salario_rango.trim().length > 120)) {
+    return res.status(400).json({ error: "El rango salarial debe ser texto de máximo 120 caracteres" });
+  }
+  if (salario_rango && !/(\d|convenir|negociable|definir)/i.test(salario_rango)) {
+    return res.status(400).json({ error: "El rango salarial debe incluir una cifra o indicar que está por definir" });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("ofertas")
@@ -145,16 +152,34 @@ router.put("/:id", requireOfferManager, async (req, res) => {
   const { id } = req.params;
   const { titulo, empresa, ciudad, modalidad, salario_rango, requisitos, descripcion, activa } = req.body;
 
+  if (titulo !== undefined && (typeof titulo !== "string" || titulo.trim().length < 3 || titulo.trim().length > 120)) {
+    return res.status(400).json({ error: "El título debe tener entre 3 y 120 caracteres" });
+  }
+  if (empresa !== undefined && (typeof empresa !== "string" || empresa.trim().length < 2 || empresa.trim().length > 120)) {
+    return res.status(400).json({ error: "La empresa debe tener entre 2 y 120 caracteres" });
+  }
+  if (modalidad !== undefined && !["presencial", "remoto", "hibrido"].includes(modalidad)) {
+    return res.status(400).json({ error: "La modalidad no es válida" });
+  }
+  if (requisitos !== undefined && (typeof requisitos !== "string" || requisitos.trim().length < 5 || requisitos.trim().length > 2000)) {
+    return res.status(400).json({ error: "Los requisitos deben tener entre 5 y 2000 caracteres" });
+  }
+  if (salario_rango !== undefined && salario_rango !== null &&
+      (typeof salario_rango !== "string" || salario_rango.trim().length > 120 ||
+       (salario_rango.trim() !== "" && !/(\d|convenir|negociable|definir)/i.test(salario_rango)))) {
+    return res.status(400).json({ error: "El rango salarial no tiene un formato válido" });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("ofertas")
     .update({
-      ...(titulo !== undefined && { titulo }),
-      ...(empresa !== undefined && { empresa }),
-      ...(ciudad !== undefined && { ciudad }),
+      ...(titulo !== undefined && { titulo: typeof titulo === "string" ? titulo.trim() : titulo }),
+      ...(empresa !== undefined && { empresa: typeof empresa === "string" ? empresa.trim() : empresa }),
+      ...(ciudad !== undefined && { ciudad: typeof ciudad === "string" ? ciudad.trim() : ciudad }),
       ...(modalidad !== undefined && { modalidad }),
       ...(salario_rango !== undefined && { salario_rango }),
-      ...(requisitos !== undefined && { requisitos }),
-      ...(descripcion !== undefined && { descripcion }),
+      ...(requisitos !== undefined && { requisitos: typeof requisitos === "string" ? requisitos.trim() : requisitos }),
+      ...(descripcion !== undefined && { descripcion: typeof descripcion === "string" ? descripcion.trim() : descripcion }),
       ...(activa !== undefined && { activa }),
     })
     .eq("id", id)

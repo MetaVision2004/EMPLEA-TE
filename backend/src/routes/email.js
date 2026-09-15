@@ -6,6 +6,7 @@ import {
   sendPasswordReset,
 } from "../services/email.js";
 import { supabaseAdmin } from "../config/supabase.js";
+import { requireAuth, requireOfferManager } from "../middleware/offerAccess.js";
 
 const router = Router();
 
@@ -29,11 +30,14 @@ router.post("/welcome", async (req, res) => {
 
 // ─── POST /api/email/postulacion ──────────────────────────────────────────────
 // Body: { name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad }
-router.post("/postulacion", async (req, res) => {
+router.post("/postulacion", requireAuth, async (req, res) => {
   const { name, email, ofertaTitulo, ofertaEmpresa, ofertaCiudad } = req.body;
 
   if (!name || !email || !ofertaTitulo || !ofertaEmpresa) {
     return res.status(400).json({ error: "name, email, ofertaTitulo y ofertaEmpresa son requeridos." });
+  }
+  if (email.toLowerCase() !== (req.authUser.email || "").toLowerCase()) {
+    return res.status(403).json({ error: "Solo puedes enviar confirmaciones para tu propio correo." });
   }
 
   try {
@@ -53,7 +57,7 @@ router.post("/postulacion", async (req, res) => {
 
 // ─── POST /api/email/estado ───────────────────────────────────────────────────
 // Body: { name, email, ofertaTitulo, ofertaEmpresa, nuevoEstado }
-router.post("/estado", async (req, res) => {
+router.post("/estado", requireOfferManager, async (req, res) => {
   const { name, email, ofertaTitulo, ofertaEmpresa, nuevoEstado } = req.body;
 
   const estadosValidos = ["aplicado", "entrevista", "oferta", "rechazado"];

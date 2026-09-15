@@ -83,10 +83,21 @@ curl http://localhost:4000/api/ofertas
 
 ### Roles y cambios de esquema
 
-El panel de ofertas acepta los emails administrativos existentes o usuarios cuyo
-`app_metadata.role`/`user_metadata.role` sea `staff` o `empresa`. El backend exige
-un Bearer token de Supabase para listar todas las ofertas o modificarlas; puedes
-personalizar los emails con `ADMIN_EMAILS` separados por comas.
+El acceso administrativo se controla con `perfiles.rol`: `admin`, `staff` o
+`empresa` pueden gestionar ofertas y analítica; las cuentas nuevas reciben
+`candidato`. El backend exige un Bearer token de Supabase y vuelve a consultar
+el rol en cada request protegida. Para promover una cuenta existente, ejecuta
+en el SQL Editor:
+
+```sql
+update perfiles
+set rol = 'admin'
+where id = 'UUID_DEL_USUARIO';
+```
+
+La clave `SUPABASE_SERVICE_ROLE_KEY` solo debe existir en el entorno del backend.
+Si la clave que estaba en el ejemplo se usó fuera de desarrollo, rótala en
+Supabase antes de desplegar.
 
 Después de actualizar el proyecto, ejecuta de nuevo las secciones nuevas de
 `docs/schema.sql` para crear `recursos_completados`, `mentores`,

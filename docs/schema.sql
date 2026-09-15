@@ -7,6 +7,7 @@
 create table if not exists perfiles (
   id uuid references auth.users(id) on delete cascade primary key,
   nombre text,
+  rol text not null default 'candidato' check (rol in ('candidato', 'empresa', 'staff', 'admin')),
   ciudad text,
   nivel_educativo text,
   habilidades text[],
@@ -14,6 +15,10 @@ create table if not exists perfiles (
   foto_url text,
   created_at timestamp with time zone default now()
 );
+
+alter table perfiles add column if not exists rol text not null default 'candidato';
+alter table perfiles drop constraint if exists perfiles_rol_check;
+alter table perfiles add constraint perfiles_rol_check check (rol in ('candidato', 'empresa', 'staff', 'admin'));
 
 -- Experiencia laboral/educativa
 create table if not exists experiencias (
@@ -111,6 +116,21 @@ alter table recursos_completados enable row level security;
 alter table mentores enable row level security;
 alter table sesiones_mentoria enable row level security;
 
+-- El backend consulta este rol con service_role. La función permite que el
+-- cliente también aplique RLS a las operaciones administrativas autorizadas.
+create or replace function public.has_profile_role(required_roles text[])
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.perfiles
+    where id = auth.uid() and rol = any(required_roles)
+  );
+$$;
+
 -- Perfiles: cada quien ve y edita solo el suyo
 drop policy if exists "select_propio_perfil" on perfiles;
 create policy "select_propio_perfil" on perfiles
@@ -194,6 +214,23 @@ alter table ofertas enable row level security;
 drop policy if exists "ofertas_activas_publicas" on ofertas;
 create policy "ofertas_activas_publicas" on ofertas
   for select using (activa = true);
+
+drop policy if exists "ofertas_gestion_select" on ofertas;
+create policy "ofertas_gestion_select" on ofertas
+  for select using (public.has_profile_role(array['admin', 'staff', 'empresa']));
+
+drop policy if exists "ofertas_gestion_insert" on ofertas;
+create policy "ofertas_gestion_insert" on ofertas
+  for insert with check (public.has_profile_role(array['admin', 'staff', 'empresa']));
+
+drop policy if exists "ofertas_gestion_update" on ofertas;
+create policy "ofertas_gestion_update" on ofertas
+  for update using (public.has_profile_role(array['admin', 'staff', 'empresa']))
+  with check (public.has_profile_role(array['admin', 'staff', 'empresa']));
+
+drop policy if exists "ofertas_gestion_delete" on ofertas;
+create policy "ofertas_gestion_delete" on ofertas
+  for delete using (public.has_profile_role(array['admin', 'staff', 'empresa']));
 
 -- El panel administrativo escribe con la service_role desde el backend.
 

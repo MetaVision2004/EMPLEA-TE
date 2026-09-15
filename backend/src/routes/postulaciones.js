@@ -1,11 +1,15 @@
 import { Router } from "express";
 import { supabaseAdmin } from "../config/supabase.js";
+import { requireAuth, requireOfferManager } from "../middleware/offerAccess.js";
 
 const router = Router();
 
 // GET /api/postulaciones/:usuarioId - listar postulaciones de un usuario
-router.get("/:usuarioId", async (req, res) => {
+router.get("/:usuarioId", requireAuth, async (req, res) => {
   const { usuarioId } = req.params;
+  if (usuarioId !== req.authUser.id) {
+    return res.status(403).json({ error: "No puedes consultar postulaciones de otro usuario" });
+  }
 
   const { data, error } = await supabaseAdmin
     .from("postulaciones")
@@ -17,18 +21,18 @@ router.get("/:usuarioId", async (req, res) => {
 });
 
 // POST /api/postulaciones - crear una postulación
-router.post("/", async (req, res) => {
-  const { usuario_id, oferta_id } = req.body;
+router.post("/", requireAuth, async (req, res) => {
+  const { oferta_id } = req.body;
 
-  if (!usuario_id || !oferta_id) {
+  if (!oferta_id || typeof oferta_id !== "string") {
     return res
       .status(400)
-      .json({ error: "usuario_id y oferta_id son obligatorios" });
+      .json({ error: "oferta_id es obligatorio" });
   }
 
   const { data, error } = await supabaseAdmin
     .from("postulaciones")
-    .insert({ usuario_id, oferta_id, estado: "aplicado" })
+    .insert({ usuario_id: req.authUser.id, oferta_id, estado: "aplicado" })
     .select()
     .single();
 
@@ -37,7 +41,7 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH /api/postulaciones/:id/estado - actualizar estado (aplicado/entrevista/oferta/rechazado)
-router.patch("/:id/estado", async (req, res) => {
+router.patch("/:id/estado", requireOfferManager, async (req, res) => {
   const { id } = req.params;
   const { estado } = req.body;
 

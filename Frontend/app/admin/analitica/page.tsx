@@ -16,7 +16,10 @@ export default function AnaliticaPage() {
   useEffect(() => {
     const cargar = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      const hasAccess = canManageOffers(user ? { email: user.email, app_metadata: { role: user.app_metadata?.role as string | undefined }, user_metadata: { role: user.user_metadata?.role as string | undefined } } : null);
+      const { data: profile } = user
+        ? await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle()
+        : { data: null };
+      const hasAccess = canManageOffers(user ? { email: user.email, app_metadata: { role: profile?.rol }, user_metadata: {} } : null);
       setAllowed(hasAccess);
       if (!hasAccess) return;
       const { data: { session } } = await supabase.auth.getSession();

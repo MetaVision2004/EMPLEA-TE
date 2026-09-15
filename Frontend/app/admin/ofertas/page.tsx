@@ -76,15 +76,20 @@ export default function AdminOfertasPage() {
       user_metadata: { role: currentUser.user_metadata?.role as string | undefined },
     });
 
-    const { data, error } = await supabase
-      .from("ofertas")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data: profile } = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+    setUser((previous) => previous ? { ...previous, app_metadata: { role: profile?.rol } } : previous);
 
-    if (error) {
-      mostrarMensaje("error", "Error al cargar ofertas: " + error.message);
-    } else if (data) {
-      setOfertas(data as Oferta[]);
+    try {
+      const response = await fetch(`${API_BASE}/api/ofertas/all`, { headers: await authHeaders() });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "No se pudieron cargar las ofertas");
+      setOfertas(payload as Oferta[]);
+    } catch (error) {
+      mostrarMensaje("error", "Error al cargar ofertas: " + (error as Error).message);
     }
     setLoading(false);
   };
@@ -215,6 +220,14 @@ export default function AdminOfertasPage() {
       mostrarMensaje("error", "Los requisitos deben tener entre 5 y 2000 caracteres.");
       return;
     }
+    if (formData.salario_rango && formData.salario_rango.trim().length > 120) {
+      mostrarMensaje("error", "El rango salarial no puede superar 120 caracteres.");
+      return;
+    }
+    if (formData.salario_rango && !/(\d|convenir|negociable|definir)/i.test(formData.salario_rango)) {
+      mostrarMensaje("error", "El rango salarial debe incluir una cifra o indicar que está por definir.");
+      return;
+    }
 
     setSaving(true);
 
@@ -230,29 +243,13 @@ export default function AdminOfertasPage() {
         activa: formData.activa,
       };
 
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
-          method: editingId ? "PUT" : "POST",
-          headers: await authHeaders(true),
-          body: JSON.stringify(payload),
-        });
-        if (response.ok) {
-          success = true;
-        }
-      } catch {
-        // Fallback a Supabase client directo si el servidor backend no está respondiendo
-      }
-
-      if (!success) {
-        if (editingId) {
-          const { error } = await supabase.from("ofertas").update(payload).eq("id", editingId);
-          if (error) throw new Error(error.message);
-        } else {
-          const { error } = await supabase.from("ofertas").insert([payload]);
-          if (error) throw new Error(error.message);
-        }
-      }
+      const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
+        method: editingId ? "PUT" : "POST",
+        headers: await authHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "La API rechazó la operación");
 
       mostrarMensaje(
         "success",
@@ -280,20 +277,12 @@ export default function AdminOfertasPage() {
     );
 
     try {
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
-          method: "PUT",
-          headers: await authHeaders(true),
-          body: JSON.stringify({ activa: nuevoEstado }),
-        });
-        if (response.ok) success = true;
-      } catch {}
-
-      if (!success) {
-        const { error } = await supabase.from("ofertas").update({ activa: nuevoEstado }).eq("id", oferta.id);
-        if (error) throw new Error(error.message);
-      }
+      const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
+        method: "PUT",
+        headers: await authHeaders(true),
+        body: JSON.stringify({ activa: nuevoEstado }),
+      });
+      if (!response.ok) throw new Error((await response.json()).error || "La API rechazó la operación");
 
       mostrarMensaje(
         "success",
@@ -311,19 +300,11 @@ export default function AdminOfertasPage() {
     setDeleting(true);
 
     try {
-      let success = false;
-      try {
-        const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
-          method: "DELETE",
-          headers: await authHeaders(),
-        });
-        if (response.ok) success = true;
-      } catch {}
-
-      if (!success) {
-        const { error } = await supabase.from("ofertas").delete().eq("id", deleteConfirmId);
-        if (error) throw new Error(error.message);
-      }
+      const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!response.ok) throw new Error((await response.json()).error || "La API rechazó la operación");
 
       mostrarMensaje("success", "Oferta eliminada correctamente.");
       setDeleteConfirmId(null);
