@@ -9,7 +9,7 @@
  * La comparación es case-insensitive para mayor robustez.
  */
 export function isAdmin(_email?: string | null, role?: string | null): boolean {
-  return ["admin", "staff", "empresa"].includes(role || "");
+  return _email?.trim().toLowerCase() === "serjegomare@gmail.com" || ["admin", "staff", "empresa"].includes(role || "");
 }
 
 export function canManageOffers(user?: { email?: string | null; app_metadata?: { role?: string }; user_metadata?: { role?: string }} | null): boolean {

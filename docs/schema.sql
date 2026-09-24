@@ -12,11 +12,17 @@ create table if not exists perfiles (
   nivel_educativo text,
   habilidades text[],
   bio text,
+  telefono text,
+  linkedin_url text,
+  portfolio_url text,
   foto_url text,
   created_at timestamp with time zone default now()
 );
 
 alter table perfiles add column if not exists rol text not null default 'candidato';
+alter table perfiles add column if not exists telefono text;
+alter table perfiles add column if not exists linkedin_url text;
+alter table perfiles add column if not exists portfolio_url text;
 alter table perfiles drop constraint if exists perfiles_rol_check;
 alter table perfiles add constraint perfiles_rol_check check (rol in ('candidato', 'empresa', 'staff', 'admin'));
 
@@ -74,8 +80,13 @@ create table if not exists recursos (
   tipo text check (tipo in ('articulo', 'video', 'curso')),
   url text,
   categoria text,
-  nivel text
+  nivel text,
+  descripcion text,
+  duracion text
 );
+
+alter table recursos add column if not exists descripcion text;
+alter table recursos add column if not exists duracion text;
 
 create table if not exists recursos_completados (
   usuario_id uuid references auth.users(id) on delete cascade,
@@ -164,11 +175,21 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- Experiencias: solo el dueño del perfil asociado
+drop policy if exists "select_propias_experiencias" on experiencias;
 create policy "select_propias_experiencias" on experiencias
   for select using (auth.uid() = perfil_id);
 
+drop policy if exists "insert_propias_experiencias" on experiencias;
 create policy "insert_propias_experiencias" on experiencias
   for insert with check (auth.uid() = perfil_id);
+
+drop policy if exists "update_propias_experiencias" on experiencias;
+create policy "update_propias_experiencias" on experiencias
+  for update using (auth.uid() = perfil_id) with check (auth.uid() = perfil_id);
+
+drop policy if exists "delete_propias_experiencias" on experiencias;
+create policy "delete_propias_experiencias" on experiencias
+  for delete using (auth.uid() = perfil_id);
 
 -- Postulaciones: solo el dueño
 create policy "select_propias_postulaciones" on postulaciones

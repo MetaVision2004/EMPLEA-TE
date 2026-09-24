@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth";
+import { canManageOffers } from "@/lib/auth";
 import BrandLogo from "@/components/BrandLogo";
 
 export default function Nav() {
@@ -13,7 +13,7 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
 
   // Estado de sesión
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string; role?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +21,16 @@ export default function Nav() {
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
-      setUser(currentUser ? { id: currentUser.id, email: currentUser.email } : null);
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from("perfiles")
+          .select("rol")
+          .eq("id", currentUser.id)
+          .maybeSingle();
+        setUser({ id: currentUser.id, email: currentUser.email, role: profile?.rol });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     };
 
@@ -47,7 +56,7 @@ export default function Nav() {
   };
 
   // Determinar si el usuario es administrador
-  const userIsAdmin = isAdmin(user?.email);
+  const userIsAdmin = canManageOffers(user ? { email: user.email, app_metadata: { role: user.role }, user_metadata: {} } : null);
 
   const linkClass = (href: string) =>
     `text-sm transition-colors ${

@@ -7,6 +7,7 @@ import { isAdmin } from "@/lib/auth";
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from "@react-pdf/renderer";
 
 type Experiencia = {
+  id?: string;
   tipo: string;
   institucion: string | null;
   cargo: string | null;
@@ -14,6 +15,8 @@ type Experiencia = {
   fecha_fin: string | null;
   descripcion: string | null;
 };
+
+type ExperienciaDraft = Omit<Experiencia, "id">;
 
 const pdfStyles = StyleSheet.create({
   page: { padding: 40, fontFamily: "Helvetica", color: "#182235" },
@@ -24,24 +27,28 @@ const pdfStyles = StyleSheet.create({
   item: { marginBottom: 8 },
 });
 
-function CvDocument({ nombre, ciudad, nivelEducativo, habilidades, experiencias }: {
+function CvDocument({ nombre, ciudad, nivelEducativo, habilidades, bio, telefono, email, linkedin, portfolio, experiencias }: {
   nombre: string;
   ciudad: string;
   nivelEducativo: string;
   habilidades: string;
+  bio: string;
+  telefono: string;
+  email: string;
+  linkedin: string;
+  portfolio: string;
   experiencias: Experiencia[];
 }) {
   return (
     <Document>
       <Page size="A4" style={pdfStyles.page}>
         <Text style={pdfStyles.title}>{nombre || "Mi perfil profesional"}</Text>
-        <Text style={pdfStyles.contact}>{[ciudad, nivelEducativo].filter(Boolean).join(" · ")}</Text>
-        <Text style={pdfStyles.heading}>Perfil</Text>
-        <Text style={pdfStyles.body}>Habilidades: {habilidades || "Por completar"}</Text>
-        <Text style={pdfStyles.heading}>Experiencia y formación</Text>
-        {experiencias.length === 0 ? (
-          <Text style={pdfStyles.body}>Aún no has agregado experiencias.</Text>
-        ) : experiencias.map((experiencia, index) => (
+        <Text style={pdfStyles.contact}>{[email, telefono, ciudad, nivelEducativo, linkedin, portfolio].filter(Boolean).join(" · ")}</Text>
+        {bio && <><Text style={pdfStyles.heading}>Perfil profesional</Text><Text style={pdfStyles.body}>{bio}</Text></>}
+        <Text style={pdfStyles.heading}>Habilidades</Text>
+        <Text style={pdfStyles.body}>{habilidades || "Por completar"}</Text>
+        <Text style={pdfStyles.heading}>Formación y experiencia</Text>
+        {experiencias.length === 0 ? <Text style={pdfStyles.body}>Aún no has agregado experiencias.</Text> : experiencias.map((experiencia, index) => (
           <View key={`${experiencia.institucion}-${index}`} style={pdfStyles.item}>
             <Text style={pdfStyles.body}>{experiencia.cargo || experiencia.tipo} · {experiencia.institucion || "Sin institución"}</Text>
             <Text style={pdfStyles.body}>{experiencia.fecha_inicio || ""} - {experiencia.fecha_fin || "Actualidad"}</Text>
@@ -59,11 +66,18 @@ export default function PerfilPage() {
   const [ciudad, setCiudad] = useState("");
   const [nivelEducativo, setNivelEducativo] = useState("");
   const [habilidades, setHabilidades] = useState("");
+  const [bio, setBio] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [portfolio, setPortfolio] = useState("");
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [experiencias, setExperiencias] = useState<Experiencia[]>([]);
+  const [nuevaExperiencia, setNuevaExperiencia] = useState<ExperienciaDraft>({
+    tipo: "laboral", institucion: "", cargo: "", fecha_inicio: "", fecha_fin: "", descripcion: "",
+  });
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -86,10 +100,14 @@ export default function PerfilPage() {
         setCiudad(perfil.ciudad || "");
         setNivelEducativo(perfil.nivel_educativo || "");
         setHabilidades((perfil.habilidades || []).join(", "));
+        setBio(perfil.bio || "");
+        setTelefono(perfil.telefono || "");
+        setLinkedin(perfil.linkedin_url || "");
+        setPortfolio(perfil.portfolio_url || "");
       }
       const { data: experienciasData } = await supabase
         .from("experiencias")
-        .select("tipo, institucion, cargo, fecha_inicio, fecha_fin, descripcion")
+        .select("id, tipo, institucion, cargo, fecha_inicio, fecha_fin, descripcion")
         .eq("perfil_id", user.id)
         .order("fecha_inicio", { ascending: false });
       setExperiencias((experienciasData || []) as Experiencia[]);
@@ -109,6 +127,10 @@ export default function PerfilPage() {
       ciudad,
       nivel_educativo: nivelEducativo,
       habilidades: habilidades.split(",").map((h) => h.trim()).filter(Boolean),
+      bio,
+      telefono,
+      linkedin_url: linkedin,
+      portfolio_url: portfolio,
     });
 
     if (error) {
@@ -128,6 +150,22 @@ export default function PerfilPage() {
     }
 
     setMensaje("Perfil guardado correctamente ✅");
+  };
+
+  const agregarExperiencia = async () => {
+    if (!userId || !nuevaExperiencia.institucion || !nuevaExperiencia.cargo) return;
+    const { data, error } = await supabase.from("experiencias").insert({ perfil_id: userId, ...nuevaExperiencia }).select("id, tipo, institucion, cargo, fecha_inicio, fecha_fin, descripcion").single();
+    if (error) { setMensaje("Error al agregar experiencia: " + error.message); return; }
+    setExperiencias((actuales) => [data as Experiencia, ...actuales]);
+    setNuevaExperiencia({ tipo: "laboral", institucion: "", cargo: "", fecha_inicio: "", fecha_fin: "", descripcion: "" });
+    setMensaje("Experiencia agregada. Guarda el perfil para actualizar el CV.");
+  };
+
+  const eliminarExperiencia = async (id?: string) => {
+    if (!id) return;
+    const { error } = await supabase.from("experiencias").delete().eq("id", id);
+    if (error) { setMensaje("Error al eliminar experiencia: " + error.message); return; }
+    setExperiencias((actuales) => actuales.filter((experiencia) => experiencia.id !== id));
   };
 
   if (loading) return <p>Cargando...</p>;
@@ -182,6 +220,14 @@ export default function PerfilPage() {
           onChange={(e) => setCiudad(e.target.value)}
         />
 
+        <label className="text-sm text-ink/70 font-medium">Resumen profesional</label>
+        <textarea className="input-field min-h-24" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Cuenta brevemente quién eres, qué buscas y qué puedes aportar." />
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><label className="text-sm text-ink/70 font-medium">Teléfono</label><input className="input-field" value={telefono} onChange={(e) => setTelefono(e.target.value)} /></div>
+          <div><label className="text-sm text-ink/70 font-medium">Correo para contacto</label><input className="input-field" value={userEmail || ""} readOnly /></div>
+        </div>
+
         <label className="text-sm text-ink/70 font-medium">Nivel educativo</label>
         <input
           className="input-field"
@@ -189,6 +235,33 @@ export default function PerfilPage() {
           onChange={(e) => setNivelEducativo(e.target.value)}
           placeholder="Ej: Bachiller, Técnico, Universitario"
         />
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div><label className="text-sm text-ink/70 font-medium">LinkedIn</label><input className="input-field" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://linkedin.com/in/..." /></div>
+          <div><label className="text-sm text-ink/70 font-medium">Portafolio</label><input className="input-field" value={portfolio} onChange={(e) => setPortfolio(e.target.value)} placeholder="https://..." /></div>
+        </div>
+
+        <section className="mt-6 border-t border-ink/10 pt-5">
+          <h2 className="font-display font-bold text-lg">Formación y experiencia</h2>
+          <p className="text-sm text-ink/60 mb-3">Agrega estudios, empleos, prácticas o voluntariados para enriquecer tu CV.</p>
+          {experiencias.map((experiencia) => <div key={experiencia.id} className="border border-ink/10 rounded-lg p-3 mb-3">
+            <p className="font-medium">{experiencia.cargo || experiencia.tipo} · {experiencia.institucion}</p>
+            <p className="text-sm text-ink/60">{experiencia.fecha_inicio || ""} - {experiencia.fecha_fin || "Actualidad"}</p>
+            {experiencia.descripcion && <p className="text-sm mt-1">{experiencia.descripcion}</p>}
+            <button type="button" className="text-sm text-red-700 mt-2" onClick={() => eliminarExperiencia(experiencia.id)}>Eliminar</button>
+          </div>)}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <select className="input-field" value={nuevaExperiencia.tipo} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, tipo: e.target.value })}>
+              <option value="laboral">Experiencia laboral</option><option value="educacion">Formación</option><option value="voluntariado">Voluntariado</option>
+            </select>
+            <input className="input-field" placeholder="Institución o empresa" value={nuevaExperiencia.institucion || ""} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, institucion: e.target.value })} />
+            <input className="input-field" placeholder="Cargo, programa o rol" value={nuevaExperiencia.cargo || ""} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, cargo: e.target.value })} />
+            <input className="input-field" placeholder="Fecha de inicio" type="date" value={nuevaExperiencia.fecha_inicio || ""} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, fecha_inicio: e.target.value })} />
+            <input className="input-field" placeholder="Fecha de finalización" type="date" value={nuevaExperiencia.fecha_fin || ""} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, fecha_fin: e.target.value })} />
+          </div>
+          <textarea className="input-field min-h-20" placeholder="Describe logros, responsabilidades o lo aprendido" value={nuevaExperiencia.descripcion || ""} onChange={(e) => setNuevaExperiencia({ ...nuevaExperiencia, descripcion: e.target.value })} />
+          <button type="button" className="btn-outline w-full" onClick={agregarExperiencia}>Agregar entrada</button>
+        </section>
 
         <label className="text-sm text-ink/70 font-medium">Habilidades (separadas por coma)</label>
         <input
@@ -212,7 +285,7 @@ export default function PerfilPage() {
           Guardar perfil
         </button>
         <PDFDownloadLink
-          document={<CvDocument nombre={nombre} ciudad={ciudad} nivelEducativo={nivelEducativo} habilidades={habilidades} experiencias={experiencias} />}
+          document={<CvDocument nombre={nombre} ciudad={ciudad} nivelEducativo={nivelEducativo} habilidades={habilidades} bio={bio} telefono={telefono} email={userEmail || ""} linkedin={linkedin} portfolio={portfolio} experiencias={experiencias} />}
           fileName="mi-cv-emplea-te.pdf"
           className="btn-outline w-full text-center mt-3"
         >

@@ -245,6 +245,7 @@ export default function PostulacionesPage() {
           );
         })}
       </div>
+      {postulaciones.length === 0 && <div className="card text-center mt-4 py-10"><h2 className="font-display text-xl font-bold text-ink">Aún no tienes postulaciones</h2><p className="text-sm text-ink/60 mt-1">Explora las ofertas y encuentra una oportunidad que se ajuste a tu perfil.</p><Link href="/ofertas" className="btn-primary inline-block mt-4">Explorar ofertas</Link></div>}
     </div>
   );
 }

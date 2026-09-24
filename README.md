@@ -22,6 +22,7 @@ emplea-te/
 1. Crea un proyecto en [supabase.com](https://supabase.com).
 2. Ve a **SQL Editor** y ejecuta, en orden:
    - `docs/schema.sql` (tablas + RLS + datos de prueba)
+  - `docs/seed_content.sql` (recursos de aprendizaje y mentores iniciales)
 3. Ve a **Storage** → crea un bucket llamado `documentos`, marcado como **privado**.
 4. En el SQL Editor, ejecuta `docs/storage_policies.sql`.
 5. Ve a **Project Settings → API** y copia:
@@ -29,10 +30,41 @@ emplea-te/
    - `anon public key` (para el frontend)
    - `service_role key` (solo para el backend, ¡mantenla secreta!)
 
-## 2. Levantar el frontend
+## 2. Levantar todo con Docker Compose
+
+Crea `backend/.env` a partir de `backend/.env.example` y completa las claves
+de Supabase. Después, crea un archivo `.env` en la raíz con las variables
+públicas del frontend:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-clave-anon
+NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+Guarda ese archivo exactamente como `.env` en la raíz del proyecto (no como
+`.env.example`), porque Docker Compose carga automáticamente `.env`.
+
+Levanta ambos servicios desde la raíz del proyecto:
 
 ```bash
-cd frontend
+docker compose up --build
+```
+
+Abre `http://localhost:3000`. La API queda disponible en
+`http://localhost:4000/api/health`.
+
+Para detener los servicios:
+
+```bash
+docker compose down
+```
+
+## 3. Levantar el frontend sin Docker
+
+```bash
+cd Frontend
 npm install
 cp .env.local.example .env.local
 # edita .env.local con tu URL y anon key de Supabase
@@ -41,7 +73,7 @@ npm run dev
 
 Abre `http://localhost:3000`.
 
-## 3. Levantar el backend (opcional)
+## 4. Levantar el backend (opcional)
 
 ```bash
 cd backend
@@ -58,21 +90,21 @@ curl http://localhost:4000/api/health
 curl http://localhost:4000/api/ofertas
 ```
 
-## 4. Flujo del MVP ya funcionando
+## 5. Flujo del MVP ya funcionando
 
 1. `/registro` → crea cuenta y perfil básico.
 2. `/perfil` → completa datos y sube CV en PDF (va al bucket `documentos`).
 3. `/ofertas` → lista ofertas activas (usa las 3 de prueba del schema.sql), botón "Postularme".
 4. `/postulaciones` → kanban con las postulaciones del usuario por estado.
 
-## 5. Despliegue
+## 6. Despliegue
 
 - **Frontend:** conecta el repo a [Vercel](https://vercel.com), agrega las
   mismas variables de `.env.local` en el panel de Vercel.
 - **Backend (si lo usas):** despliega en [Render](https://render.com) o
   [Railway](https://railway.app), agrega las variables de `.env` allí.
 
-## 6. Próximos pasos sugeridos
+## 7. Próximos pasos sugeridos
 
 - [x] Página de administración de ofertas con CRUD, activación/desactivación, validación y acceso por rol
 - [x] Generador de CV en PDF a partir del perfil y experiencias

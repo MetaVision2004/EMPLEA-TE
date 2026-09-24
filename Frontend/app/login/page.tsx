@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { isAdmin } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,9 +67,12 @@ export default function LoginPage() {
       return;
     }
 
-    // Redirigir según rol
-    const loggedEmail = email.trim().toLowerCase();
-    if (isAdmin(loggedEmail)) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = user
+      ? await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle()
+      : { data: null };
+
+    if (["admin", "staff", "empresa"].includes(profile?.rol || "")) {
       router.push("/admin/ofertas");
     } else {
       router.push("/perfil");

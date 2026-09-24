@@ -11,6 +11,8 @@ type Recurso = {
   url: string | null;
   categoria: string | null;
   nivel: string | null;
+  descripcion: string | null;
+  duracion: string | null;
 };
 
 const typeStyles = {
@@ -83,8 +85,9 @@ export default function RecursosPage() {
           {niveles.map((item) => <option key={item} value={item}>{item}</option>)}
         </select>
       </div>
+      {recursos.length > 0 && <div className="flex items-center justify-between text-sm text-ink/60"><span>{filtrados.length} recursos disponibles</span><span>{completados.size} completados</span></div>}
       {filtrados.length === 0 ? (
-        <div className="card text-center py-10 text-ink/60">No hay recursos con estos filtros.</div>
+        <div className="card text-center py-10"><p className="font-semibold text-ink">No hay recursos con estos filtros.</p><p className="text-sm text-ink/60 mt-1">Prueba otra categoría o nivel para encontrar materiales.</p><button type="button" className="btn-outline mt-4 text-sm" onClick={() => { setCategoria("todas"); setNivel("todos"); }}>Limpiar filtros</button></div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtrados.map((recurso) => {
@@ -98,9 +101,10 @@ export default function RecursosPage() {
                 <div>
                   <h2 className="font-semibold text-lg text-ink">{recurso.titulo}</h2>
                   <p className="text-sm text-ink/60 mt-1">{recurso.categoria || "General"} · {recurso.nivel || "Todos los niveles"}</p>
+                  {recurso.descripcion && <p className="text-sm text-ink/70 mt-3">{recurso.descripcion}</p>}
                 </div>
                 <div className="mt-auto flex items-center justify-between gap-3">
-                  {recurso.url ? <a href={recurso.url} target="_blank" rel="noreferrer" className="btn-primary text-xs">Abrir recurso</a> : <span />}
+                  <div className="flex items-center gap-2">{recurso.url ? <a href={recurso.url} target="_blank" rel="noreferrer" className="btn-primary text-xs">Abrir recurso</a> : <span />}{recurso.duracion && <span className="text-xs text-ink/50">{recurso.duracion}</span>}</div>
                   {userId ? (
                     <button onClick={() => toggleCompletado(recurso.id)} className="btn-outline text-xs">
                       {completado ? "Desmarcar" : "Marcar completado"}
