@@ -30,6 +30,9 @@ emplea-te/
    - `anon public key` (para el frontend)
    - `service_role key` (solo para el backend, ¡mantenla secreta!)
 
+La referencia para capturar el panel del proyecto, con Auth, Database y Storage,
+está en [docs/supabase-panel.md](docs/supabase-panel.md).
+
 ## 2. Levantar todo con Docker Compose
 
 Crea `backend/.env` a partir de `backend/.env.example` y completa las claves
