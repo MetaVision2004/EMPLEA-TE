@@ -5,6 +5,10 @@ import { requireOfferManager } from "../middleware/offerAccess.js";
 const router = Router();
 
 router.get("/", requireOfferManager, async (req, res) => {
+  if (!['admin', 'staff'].includes(req.authRole)) {
+    return res.status(403).json({ error: "No tienes permisos para consultar la analítica global" });
+  }
+
   const [{ count: perfilesTotal, error: perfilesError }, { data: perfiles, error: perfilesDataError }, { count: entrevistas, error: entrevistasError }] = await Promise.all([
     supabaseAdmin.from("perfiles").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("perfiles").select("nombre, ciudad, nivel_educativo, habilidades"),

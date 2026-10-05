@@ -1,12 +1,11 @@
 /**
  * Llama a los endpoints de email del backend de Emplea-TE.
- * El backend corre en NEXT_PUBLIC_API_URL (default http://localhost:4000).
+ * El backend corre en NEXT_PUBLIC_API_URL.
  *
- * Todos los errores se silencian — los emails son "best-effort" y no deben
- * bloquear el flujo principal de la app.
+ * El envío es no bloqueante; los fallos se registran para que no se reporten como éxito.
  */
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const API = process.env.NEXT_PUBLIC_API_URL;
 import { supabase } from "./supabaseClient";
 
 type WelcomePayload = {
@@ -31,9 +30,13 @@ type EstadoPayload = {
 };
 
 async function post(path: string, body: object) {
+  if (!API) {
+    console.warn("[email] NEXT_PUBLIC_API_URL no está configurada");
+    return;
+  }
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    await fetch(`${API}/api/email/${path}`, {
+    const response = await fetch(`${API}/api/email/${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -41,6 +44,7 @@ async function post(path: string, body: object) {
       },
       body: JSON.stringify(body),
     });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
   } catch {
     // Email delivery is non-blocking — log and continue
     console.warn(`[email] No se pudo enviar email (${path})`);

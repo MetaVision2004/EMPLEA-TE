@@ -5,15 +5,14 @@
  */
 
 /**
- * Verifica si un email pertenece a un administrador autorizado.
- * La comparación es case-insensitive para mayor robustez.
+ * Verifica si el rol asignado al perfil es admin.
  */
 export function isAdmin(_email?: string | null, role?: string | null): boolean {
-  return _email?.trim().toLowerCase() === "serjegomare@gmail.com" || ["admin", "staff", "empresa"].includes(role || "");
+  return role === "admin";
 }
 
 export function canManageOffers(user?: { email?: string | null; app_metadata?: { role?: string }; user_metadata?: { role?: string }} | null): boolean {
   if (!user) return false;
   const role = user.app_metadata?.role || user.user_metadata?.role;
-  return isAdmin(user.email) || role === "staff" || role === "empresa";
+  return ["admin", "staff", "empresa"].includes(role || "");
 }

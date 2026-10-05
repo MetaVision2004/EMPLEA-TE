@@ -70,8 +70,9 @@ export default function RegistroPage() {
         console.warn("[registro] Aviso perfil:", perfilError.message);
       }
 
-      // Envía email de bienvenida (no bloquea el flujo)
-      triggerEmail.welcome({ name: nombre.trim(), email: email.trim() });
+      if (data.session) {
+        triggerEmail.welcome({ name: nombre.trim(), email: email.trim() });
+      }
     }
 
     setLoading(false);
@@ -139,11 +140,11 @@ export default function RegistroPage() {
             </label>
             <input
               type="password"
-              placeholder="Mínimo 6 caracteres"
+              placeholder="Mínimo 8 caracteres"
               className="input-field mb-0"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              minLength={6}
+              minLength={8}
               required
             />
           </div>

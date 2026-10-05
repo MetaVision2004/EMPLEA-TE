@@ -41,11 +41,15 @@ create table if not exists experiencias (
 -- Empresas que publican ofertas
 create table if not exists empresas (
   id uuid default gen_random_uuid() primary key,
+  owner_id uuid references auth.users(id) on delete set null,
   nombre text not null,
   sector text,
   ciudad text,
   logo_url text
 );
+
+alter table empresas add column if not exists owner_id uuid references auth.users(id) on delete set null;
+create unique index if not exists empresas_owner_id_unique on empresas(owner_id) where owner_id is not null;
 
 -- Ofertas de empleo
 create table if not exists ofertas (
@@ -68,10 +72,16 @@ create table if not exists postulaciones (
   usuario_id uuid references auth.users(id) on delete cascade,
   oferta_id uuid references ofertas(id) on delete cascade,
   estado text default 'aplicado' check (estado in ('aplicado', 'entrevista', 'oferta', 'rechazado')),
+  estado_personal text not null default 'aplicado' check (estado_personal in ('aplicado', 'entrevista', 'oferta', 'rechazado')),
   notas text,
   created_at timestamp with time zone default now(),
   unique (usuario_id, oferta_id)
 );
+
+alter table postulaciones add column if not exists estado_personal text;
+update postulaciones set estado_personal = estado where estado_personal is null;
+alter table postulaciones alter column estado_personal set default 'aplicado';
+alter table postulaciones alter column estado_personal set not null;
 
 -- Recursos educativos
 create table if not exists recursos (
@@ -120,6 +130,8 @@ create table if not exists sesiones_mentoria (
 -- ============================================
 
 alter table perfiles enable row level security;
+alter table empresas enable row level security;
+alter table ofertas enable row level security;
 alter table experiencias enable row level security;
 alter table postulaciones enable row level security;
 alter table recursos enable row level security;
@@ -149,11 +161,168 @@ create policy "select_propio_perfil" on perfiles
 
 drop policy if exists "insert_propio_perfil" on perfiles;
 create policy "insert_propio_perfil" on perfiles
-  for insert with check (auth.uid() = id);
+  for insert with check (auth.uid() = id and rol = 'candidato');
 
 drop policy if exists "update_propio_perfil" on perfiles;
 create policy "update_propio_perfil" on perfiles
   for update using (auth.uid() = id);
+
+create or replace function public.prevent_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null
+     and new.rol is distinct from old.rol
+     and not public.has_profile_role(array['admin']) then
+    raise exception 'No puedes cambiar tu rol';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists perfiles_no_rol_change on public.perfiles;
+create trigger perfiles_no_rol_change
+  before update on public.perfiles
+  for each row execute function public.prevent_role_change();
+
+-- Los datos de empresas son públicos; solo admin/staff pueden mantenerlos
+-- hasta que exista una relación explícita entre una cuenta y su empresa.
+drop policy if exists "empresas_publicas" on empresas;
+create policy "empresas_publicas" on empresas
+  for select using (true);
+
+drop policy if exists "insert_empresas_admin_staff" on empresas;
+create policy "insert_empresas_admin_staff" on empresas
+  for insert with check (public.has_profile_role(array['admin', 'staff']));
+
+drop policy if exists "update_empresas_admin_staff" on empresas;
+create policy "update_empresas_admin_staff" on empresas
+  for update using (public.has_profile_role(array['admin', 'staff']))
+  with check (public.has_profile_role(array['admin', 'staff']));
+
+drop policy if exists "delete_empresas_admin_staff" on empresas;
+create policy "delete_empresas_admin_staff" on empresas
+  for delete using (public.has_profile_role(array['admin', 'staff']));
+
+drop policy if exists "ofertas_activas_publicas" on ofertas;
+create policy "ofertas_activas_publicas" on ofertas
+  for select using (activa = true);
+
+drop policy if exists "select_ofertas_gestionables" on ofertas;
+create policy "select_ofertas_gestionables" on ofertas
+  for select using (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.empresas e
+      where e.id = ofertas.empresa_id and e.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "insert_ofertas_gestionables" on ofertas;
+create policy "insert_ofertas_gestionables" on ofertas
+  for insert with check (
+    public.has_profile_role(array['admin', 'staff'])
+    or (
+      public.has_profile_role(array['empresa'])
+      and exists (
+        select 1 from public.empresas e
+        where e.id = ofertas.empresa_id and e.owner_id = auth.uid()
+      )
+    )
+  );
+
+drop policy if exists "update_ofertas_gestionables" on ofertas;
+create policy "update_ofertas_gestionables" on ofertas
+  for update using (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.empresas e
+      where e.id = ofertas.empresa_id and e.owner_id = auth.uid()
+    )
+  ) with check (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.empresas e
+      where e.id = ofertas.empresa_id and e.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "delete_ofertas_gestionables" on ofertas;
+create policy "delete_ofertas_gestionables" on ofertas
+  for delete using (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.empresas e
+      where e.id = ofertas.empresa_id and e.owner_id = auth.uid()
+    )
+  );
+
+create or replace function public.enforce_owned_company_name()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  nombre_empresa text;
+begin
+  if public.has_profile_role(array['empresa']) then
+    select nombre into nombre_empresa
+    from public.empresas
+    where id = new.empresa_id and owner_id = auth.uid();
+    if nombre_empresa is null then
+      raise exception 'La oferta debe pertenecer a tu empresa vinculada';
+    end if;
+    new.empresa := nombre_empresa;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists ofertas_nombre_empresa_protegido on public.ofertas;
+create trigger ofertas_nombre_empresa_protegido
+  before insert or update on public.ofertas
+  for each row execute function public.enforce_owned_company_name();
+
+create or replace function public.admin_stats()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  total_perfiles bigint;
+  completos bigint;
+  entrevistas bigint;
+begin
+  if not public.has_profile_role(array['admin', 'staff']) then
+    raise exception 'No tienes permisos para consultar la analítica';
+  end if;
+
+  select count(*), count(*) filter (
+    where nombre is not null and btrim(nombre) <> ''
+      and ciudad is not null and btrim(ciudad) <> ''
+      and nivel_educativo is not null and btrim(nivel_educativo) <> ''
+      and habilidades is not null and cardinality(habilidades) > 0
+  ) into total_perfiles, completos
+  from public.perfiles;
+
+  select count(*) into entrevistas
+  from public.postulaciones where estado = 'entrevista';
+
+  return jsonb_build_object(
+    'perfiles', jsonb_build_object('total', total_perfiles, 'completos', completos),
+    'postulaciones', jsonb_build_object('entrevista', entrevistas)
+  );
+end;
+$$;
+
+revoke all on function public.admin_stats() from public;
+grant execute on function public.admin_stats() to authenticated;
 
 -- Trigger para crear perfil automáticamente al registrarse en auth.users (evita error RLS al crear cuenta)
 create or replace function public.handle_new_user()
@@ -191,25 +360,100 @@ drop policy if exists "delete_propias_experiencias" on experiencias;
 create policy "delete_propias_experiencias" on experiencias
   for delete using (auth.uid() = perfil_id);
 
--- Postulaciones: solo el dueño
+-- Postulaciones: el candidato inicia el proceso, la empresa actualiza el estado oficial
+drop policy if exists "select_propias_postulaciones" on postulaciones;
 create policy "select_propias_postulaciones" on postulaciones
   for select using (auth.uid() = usuario_id);
 
+drop policy if exists "insert_propias_postulaciones" on postulaciones;
 create policy "insert_propias_postulaciones" on postulaciones
-  for insert with check (auth.uid() = usuario_id);
+  for insert with check (auth.uid() = usuario_id and estado = 'aplicado');
 
+drop policy if exists "update_propias_postulaciones" on postulaciones;
 create policy "update_propias_postulaciones" on postulaciones
   for update using (auth.uid() = usuario_id) with check (auth.uid() = usuario_id);
 
+drop policy if exists "select_postulaciones_gestionables" on postulaciones;
+create policy "select_postulaciones_gestionables" on postulaciones
+  for select using (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.ofertas o
+      join public.empresas e on e.id = o.empresa_id
+      where o.id = postulaciones.oferta_id and e.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "update_postulaciones_gestionables" on postulaciones;
+create policy "update_postulaciones_gestionables" on postulaciones
+  for update using (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.ofertas o
+      join public.empresas e on e.id = o.empresa_id
+      where o.id = postulaciones.oferta_id and e.owner_id = auth.uid()
+    )
+  ) with check (
+    public.has_profile_role(array['admin', 'staff'])
+    or exists (
+      select 1 from public.ofertas o
+      join public.empresas e on e.id = o.empresa_id
+      where o.id = postulaciones.oferta_id and e.owner_id = auth.uid()
+    )
+  );
+
+create or replace function public.prevent_candidate_status_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if not public.has_profile_role(array['admin', 'staff']) then
+      new.estado := 'aplicado';
+    end if;
+    return new;
+  end if;
+
+  if (new.usuario_id is distinct from old.usuario_id
+      or new.oferta_id is distinct from old.oferta_id
+      or new.created_at is distinct from old.created_at)
+     and not public.has_profile_role(array['admin', 'staff']) then
+    raise exception 'No puedes cambiar la identidad de la postulación';
+  end if;
+
+  if new.estado is distinct from old.estado
+     and not public.has_profile_role(array['admin', 'staff'])
+     and not exists (
+       select 1 from public.ofertas o
+       join public.empresas e on e.id = o.empresa_id
+       where o.id = new.oferta_id and e.owner_id = auth.uid()
+     ) then
+    raise exception 'Solo la empresa responsable puede cambiar el estado oficial';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists postulaciones_estado_oficial_protegido on public.postulaciones;
+create trigger postulaciones_estado_oficial_protegido
+  before insert or update on public.postulaciones
+  for each row execute function public.prevent_candidate_status_change();
+
+drop policy if exists "recursos_publicos" on recursos;
 create policy "recursos_publicos" on recursos
   for select using (true);
 
+drop policy if exists "select_recursos_completados" on recursos_completados;
 create policy "select_recursos_completados" on recursos_completados
   for select using (auth.uid() = usuario_id);
 
+drop policy if exists "insert_recursos_completados" on recursos_completados;
 create policy "insert_recursos_completados" on recursos_completados
   for insert with check (auth.uid() = usuario_id);
 
+drop policy if exists "delete_recursos_completados" on recursos_completados;
 create policy "delete_recursos_completados" on recursos_completados
   for delete using (auth.uid() = usuario_id);
 
@@ -226,34 +470,34 @@ create policy "insert_propias_sesiones" on sesiones_mentoria
   for insert with check (auth.uid() = usuario_id);
 
 drop policy if exists "update_propias_sesiones" on sesiones_mentoria;
-create policy "update_propias_sesiones" on sesiones_mentoria
-  for update using (auth.uid() = usuario_id) with check (auth.uid() = usuario_id);
+drop policy if exists "select_sesiones_admin_staff" on sesiones_mentoria;
+create policy "select_sesiones_admin_staff" on sesiones_mentoria
+  for select using (public.has_profile_role(array['admin', 'staff']));
 
--- Ofertas y recursos quedan públicos de lectura (no requieren RLS restrictivo)
--- Las ofertas activas deben poder consultarse sin iniciar sesión.
-alter table ofertas enable row level security;
-drop policy if exists "ofertas_activas_publicas" on ofertas;
-create policy "ofertas_activas_publicas" on ofertas
-  for select using (activa = true);
+drop policy if exists "update_sesiones_admin_staff" on sesiones_mentoria;
+create policy "update_sesiones_admin_staff" on sesiones_mentoria
+  for update using (public.has_profile_role(array['admin', 'staff']))
+  with check (public.has_profile_role(array['admin', 'staff']));
 
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'ofertas'
+     ) then
+    alter publication supabase_realtime add table public.ofertas;
+  end if;
+end;
+$$;
+
+-- Retira permisos heredados sin límite de propiedad sobre ofertas.
 drop policy if exists "ofertas_gestion_select" on ofertas;
-create policy "ofertas_gestion_select" on ofertas
-  for select using (public.has_profile_role(array['admin', 'staff', 'empresa']));
-
 drop policy if exists "ofertas_gestion_insert" on ofertas;
-create policy "ofertas_gestion_insert" on ofertas
-  for insert with check (public.has_profile_role(array['admin', 'staff', 'empresa']));
-
 drop policy if exists "ofertas_gestion_update" on ofertas;
-create policy "ofertas_gestion_update" on ofertas
-  for update using (public.has_profile_role(array['admin', 'staff', 'empresa']))
-  with check (public.has_profile_role(array['admin', 'staff', 'empresa']));
-
 drop policy if exists "ofertas_gestion_delete" on ofertas;
-create policy "ofertas_gestion_delete" on ofertas
-  for delete using (public.has_profile_role(array['admin', 'staff', 'empresa']));
-
--- El panel administrativo escribe con la service_role desde el backend.
 
 -- ============================================
 -- Datos de prueba (opcional, para probar el MVP)

@@ -49,8 +49,8 @@ export default function NuevaContrasenaPage() {
     event.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (password.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
 
@@ -135,10 +135,10 @@ export default function NuevaContrasenaPage() {
               <input
                 type="password"
                 className="input-field mt-1 mb-0"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                minLength={6}
+                minLength={8}
                 required
                 disabled={!ready || saving}
               />
@@ -151,7 +151,7 @@ export default function NuevaContrasenaPage() {
                 placeholder="Repite la contraseña"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                minLength={6}
+                minLength={8}
                 required
                 disabled={!ready || saving}
               />

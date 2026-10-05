@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { triggerEmail } from "@/lib/email";
 import { isAdmin } from "@/lib/auth";
 
 type Postulacion = {
   id: string;
   estado: string;
+  estado_personal: string;
   notas: string | null;
   created_at: string;
   ofertas: { titulo: string; empresa: string } | null;
@@ -34,7 +34,7 @@ const ESTADO_COLORS: Record<Estado, string> = {
 export default function PostulacionesPage() {
   const [postulaciones, setPostulaciones] = useState<Postulacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string; nombre: string; role?: string } | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [empresaFiltro, setEmpresaFiltro] = useState("");
   const [fechaFiltro, setFechaFiltro] = useState("");
@@ -54,7 +54,7 @@ export default function PostulacionesPage() {
       // Load profile name for email
       const { data: perfil } = await supabase
         .from("perfiles")
-        .select("nombre")
+        .select("nombre, rol")
         .eq("id", user.id)
         .single();
 
@@ -62,11 +62,12 @@ export default function PostulacionesPage() {
         id: user.id,
         email: user.email ?? "",
         nombre: perfil?.nombre ?? "Usuario",
+        role: perfil?.rol,
       });
 
       const { data } = await supabase
         .from("postulaciones")
-        .select("id, estado, notas, created_at, ofertas ( titulo, empresa )")
+        .select("id, estado, estado_personal, notas, created_at, ofertas ( titulo, empresa )")
         .eq("usuario_id", user.id);
 
       if (data) setPostulaciones(data as unknown as Postulacion[]);
@@ -76,29 +77,18 @@ export default function PostulacionesPage() {
   }, []);
 
   const cambiarEstado = async (postulacion: Postulacion, nuevoEstado: Estado) => {
-    if (postulacion.estado === nuevoEstado) return;
+    if (postulacion.estado_personal === nuevoEstado) return;
     setUpdatingId(postulacion.id);
 
     const { error } = await supabase
       .from("postulaciones")
-      .update({ estado: nuevoEstado })
+      .update({ estado_personal: nuevoEstado })
       .eq("id", postulacion.id);
 
     if (!error) {
       setPostulaciones((prev) =>
-        prev.map((p) => (p.id === postulacion.id ? { ...p, estado: nuevoEstado } : p))
+        prev.map((p) => (p.id === postulacion.id ? { ...p, estado_personal: nuevoEstado } : p))
       );
-
-      // Send status-change email (non-blocking)
-      if (currentUser && postulacion.ofertas) {
-        triggerEmail.estado({
-          name: currentUser.nombre,
-          email: currentUser.email,
-          ofertaTitulo: postulacion.ofertas.titulo,
-          ofertaEmpresa: postulacion.ofertas.empresa,
-          nuevoEstado,
-        });
-      }
     }
 
     setUpdatingId(null);
@@ -152,7 +142,7 @@ export default function PostulacionesPage() {
   }
 
   // GUARDA DE SEGURIDAD: Los administradores no acceden a esta sección
-  if (isAdmin(currentUser.email)) {
+  if (isAdmin(currentUser.email, currentUser.role)) {
     return (
       <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
         <div className="w-12 h-12 rounded-full bg-accent-50 text-accent-500 flex items-center justify-center mx-auto text-2xl">
@@ -192,7 +182,7 @@ export default function PostulacionesPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {ESTADOS.map((estado) => {
-          const postulacionesEnEstado = visibles.filter((p) => p.estado === estado);
+          const postulacionesEnEstado = visibles.filter((p) => p.estado_personal === estado);
           return (
             <div key={estado} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (draggedId) { const postulacion = postulaciones.find((item) => item.id === draggedId); if (postulacion) cambiarEstado(postulacion, estado); setDraggedId(null); } }} className="bg-white rounded-2xl shadow-soft p-3.5 border border-primary-50 flex flex-col justify-between">
               <div>
@@ -216,10 +206,10 @@ export default function PostulacionesPage() {
                       {/* Selector de cambio de estado */}
                       <select
                         disabled={updatingId === p.id}
-                        value={p.estado}
+                        value={p.estado_personal}
                         onChange={(e) => cambiarEstado(p, e.target.value as Estado)}
-                        className={`w-full text-xs rounded-lg border px-2 py-1 cursor-pointer font-medium focus:outline-none ${ESTADO_COLORS[p.estado as Estado]}`}
-                        title="Cambiar estado de postulación"
+                        className={`w-full text-xs rounded-lg border px-2 py-1 cursor-pointer font-medium focus:outline-none ${ESTADO_COLORS[p.estado_personal as Estado]}`}
+                        title="Cambiar mi seguimiento personal"
                       >
                         {ESTADOS.map((s) => (
                           <option key={s} value={s}>
@@ -227,6 +217,7 @@ export default function PostulacionesPage() {
                           </option>
                         ))}
                       </select>
+                      <p className="text-xs text-ink/60">Estado de la empresa: <span className="font-medium">{ESTADO_LABELS[p.estado as Estado] || p.estado}</span></p>
                       {updatingId === p.id && (
                         <p className="text-xs text-ink/40 mt-1 animate-pulse">Guardando cambio...</p>
                       )}

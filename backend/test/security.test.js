@@ -25,10 +25,18 @@ test("rejects protected application routes without a bearer token", async () => 
   assert.equal(response.status, 401);
 });
 
+test("rejects welcome emails without a bearer token", async () => {
+  const response = await request(app)
+    .post("/api/email/welcome")
+    .send({ name: "Usuario", email: "victim@example.com" });
+
+  assert.equal(response.status, 401);
+});
+
 test("rejects authenticated users without a management role", async () => {
   const originalGetUser = supabaseAdmin.auth.getUser;
   const originalFrom = supabaseAdmin.from;
-  supabaseAdmin.auth.getUser = async () => ({ data: { user: { id: "candidate-id", email: "candidate@example.com" } }, error: null });
+  supabaseAdmin.auth.getUser = async () => ({ data: { user: { id: "candidate-id", email: "serjegomare@gmail.com" } }, error: null });
   supabaseAdmin.from = () => ({
     select: () => ({
       eq: () => ({ maybeSingle: async () => ({ data: { rol: "candidato" }, error: null }) }),
@@ -40,6 +48,32 @@ test("rejects authenticated users without a management role", async () => {
       .get("/api/ofertas/all")
       .set("Authorization", "Bearer valid-token");
     assert.equal(response.status, 403);
+  } finally {
+    supabaseAdmin.auth.getUser = originalGetUser;
+    supabaseAdmin.from = originalFrom;
+  }
+});
+
+test("rejects an enterprise account without an owned company", async () => {
+  const originalGetUser = supabaseAdmin.auth.getUser;
+  const originalFrom = supabaseAdmin.from;
+  supabaseAdmin.auth.getUser = async () => ({ data: { user: { id: "company-owner", email: "company@example.com" } }, error: null });
+  supabaseAdmin.from = (table) => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => table === "perfiles"
+          ? ({ data: { rol: "empresa" }, error: null })
+          : ({ data: null, error: null }),
+      }),
+    }),
+  });
+
+  try {
+    const response = await request(app)
+      .get("/api/ofertas/all")
+      .set("Authorization", "Bearer valid-token");
+    assert.equal(response.status, 403);
+    assert.equal(response.body.error, "La cuenta no tiene una empresa vinculada");
   } finally {
     supabaseAdmin.auth.getUser = originalGetUser;
     supabaseAdmin.from = originalFrom;

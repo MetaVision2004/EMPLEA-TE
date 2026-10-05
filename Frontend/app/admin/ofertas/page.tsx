@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { canManageOffers } from "@/lib/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 export type Oferta = {
   id: string;
+  empresa_id?: string | null;
   titulo: string;
   empresa: string;
   ciudad: string;
@@ -35,6 +34,7 @@ const INITIAL_FORM: Omit<Oferta, "id"> = {
 
 export default function AdminOfertasPage() {
   const [user, setUser] = useState<{ id: string; email?: string; app_metadata?: { role?: string }; user_metadata?: { role?: string } } | null>(null);
+  const [empresaPropia, setEmpresaPropia] = useState<{ id: string; nombre: string } | null>(null);
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState<{ tipo: "success" | "error"; texto: string } | null>(null);
@@ -57,7 +57,12 @@ export default function AdminOfertasPage() {
   const [deleting, setDeleting] = useState(false);
 
   // Cargar sesión y ofertas
-  const inicializar = async () => {
+  const mostrarMensaje = useCallback((tipo: "success" | "error", texto: string) => {
+    setMensaje({ tipo, texto });
+    setTimeout(() => setMensaje(null), 4000);
+  }, []);
+
+  const inicializar = useCallback(async () => {
     setLoading(true);
     const {
       data: { user: currentUser },
@@ -69,47 +74,48 @@ export default function AdminOfertasPage() {
       return;
     }
 
-    setUser({
-      id: currentUser.id,
-      email: currentUser.email,
-      app_metadata: { role: currentUser.app_metadata?.role as string | undefined },
-      user_metadata: { role: currentUser.user_metadata?.role as string | undefined },
-    });
-
     const { data: profile } = await supabase
       .from("perfiles")
       .select("rol")
       .eq("id", currentUser.id)
       .maybeSingle();
-    setUser((previous) => previous ? { ...previous, app_metadata: { role: profile?.rol } } : previous);
+    setUser({
+      id: currentUser.id,
+      email: currentUser.email,
+      app_metadata: { role: profile?.rol },
+      user_metadata: {},
+    });
 
-    try {
-      const response = await fetch(`${API_BASE}/api/ofertas/all`, { headers: await authHeaders() });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "No se pudieron cargar las ofertas");
-      setOfertas(payload as Oferta[]);
-    } catch (error) {
-      mostrarMensaje("error", "Error al cargar ofertas: " + (error as Error).message);
+    let companyForUser: { id: string; nombre: string } | null = null;
+    if (profile?.rol === "empresa") {
+      const { data: company } = await supabase
+        .from("empresas")
+        .select("id, nombre")
+        .eq("owner_id", currentUser.id)
+        .maybeSingle();
+      companyForUser = company;
+      setEmpresaPropia(company);
+    } else {
+      setEmpresaPropia(null);
     }
+
+    if (profile?.rol === "empresa" && !companyForUser) {
+      setOfertas([]);
+      setLoading(false);
+      return;
+    }
+
+    let offersQuery = supabase.from("ofertas").select("*");
+    if (companyForUser) offersQuery = offersQuery.eq("empresa_id", companyForUser.id);
+    const { data, error } = await offersQuery.order("created_at", { ascending: false });
+    if (error) mostrarMensaje("error", "Error al cargar ofertas: " + error.message);
+    else setOfertas((data || []) as Oferta[]);
     setLoading(false);
-  };
+  }, [mostrarMensaje]);
 
   useEffect(() => {
-    inicializar();
-  }, []);
-
-  const mostrarMensaje = (tipo: "success" | "error", texto: string) => {
-    setMensaje({ tipo, texto });
-    setTimeout(() => setMensaje(null), 4000);
-  };
-
-  const authHeaders = async (json = false) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return {
-      ...(json ? { "Content-Type": "application/json" } : {}),
-      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    };
-  };
+    void inicializar();
+  }, [inicializar]);
 
   // Extraer valores únicos para select de ciudades
   const ciudadesUnicas = useMemo(() => {
@@ -176,7 +182,7 @@ export default function AdminOfertasPage() {
   // Abrir modal de creación
   const handleNuevo = () => {
     setEditingId(null);
-    setFormData(INITIAL_FORM);
+    setFormData({ ...INITIAL_FORM, empresa: empresaPropia?.nombre || "", empresa_id: empresaPropia?.id ?? null });
     setModalOpen(true);
   };
 
@@ -185,6 +191,7 @@ export default function AdminOfertasPage() {
     setEditingId(oferta.id);
     setFormData({
       titulo: oferta.titulo,
+      empresa_id: oferta.empresa_id,
       empresa: oferta.empresa,
       ciudad: oferta.ciudad || "Barranquilla",
       modalidad: oferta.modalidad || "presencial",
@@ -235,6 +242,7 @@ export default function AdminOfertasPage() {
       const payload = {
         titulo,
         empresa,
+        empresa_id: user?.app_metadata?.role === "empresa" ? empresaPropia?.id : formData.empresa_id ?? null,
         ciudad: formData.ciudad,
         modalidad: formData.modalidad,
         salario_rango: formData.salario_rango || null,
@@ -243,13 +251,10 @@ export default function AdminOfertasPage() {
         activa: formData.activa,
       };
 
-      const response = await fetch(`${API_BASE}/api/ofertas${editingId ? `/${editingId}` : ""}`, {
-        method: editingId ? "PUT" : "POST",
-        headers: await authHeaders(true),
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "La API rechazó la operación");
+      const { error } = editingId
+        ? await supabase.from("ofertas").update(payload).eq("id", editingId)
+        : await supabase.from("ofertas").insert(payload);
+      if (error) throw error;
 
       mostrarMensaje(
         "success",
@@ -277,12 +282,8 @@ export default function AdminOfertasPage() {
     );
 
     try {
-      const response = await fetch(`${API_BASE}/api/ofertas/${oferta.id}`, {
-        method: "PUT",
-        headers: await authHeaders(true),
-        body: JSON.stringify({ activa: nuevoEstado }),
-      });
-      if (!response.ok) throw new Error((await response.json()).error || "La API rechazó la operación");
+      const { error } = await supabase.from("ofertas").update({ activa: nuevoEstado }).eq("id", oferta.id);
+      if (error) throw error;
 
       mostrarMensaje(
         "success",
@@ -300,11 +301,8 @@ export default function AdminOfertasPage() {
     setDeleting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/ofertas/${deleteConfirmId}`, {
-        method: "DELETE",
-        headers: await authHeaders(),
-      });
-      if (!response.ok) throw new Error((await response.json()).error || "La API rechazó la operación");
+      const { error } = await supabase.from("ofertas").delete().eq("id", deleteConfirmId);
+      if (error) throw error;
 
       mostrarMensaje("success", "Oferta eliminada correctamente.");
       setDeleteConfirmId(null);
@@ -346,6 +344,15 @@ export default function AdminOfertasPage() {
             Ir al Sitio Público
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (user.app_metadata?.role === "empresa" && !empresaPropia) {
+    return (
+      <div className="card max-w-md mx-auto text-center py-10 space-y-3">
+        <h1 className="text-xl font-display font-bold">Empresa sin vincular</h1>
+        <p className="text-sm text-ink/60">Solicita al equipo administrador que vincule tu cuenta con un registro de empresa.</p>
       </div>
     );
   }

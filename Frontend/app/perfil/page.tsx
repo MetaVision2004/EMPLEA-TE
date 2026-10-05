@@ -74,6 +74,7 @@ export default function PerfilPage() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [userRole, setUserRole] = useState<string | undefined>(undefined);
   const [experiencias, setExperiencias] = useState<Experiencia[]>([]);
   const [nuevaExperiencia, setNuevaExperiencia] = useState<ExperienciaDraft>({
     tipo: "laboral", institucion: "", cargo: "", fecha_inicio: "", fecha_fin: "", descripcion: "",
@@ -96,6 +97,7 @@ export default function PerfilPage() {
         .single();
 
       if (perfil) {
+        setUserRole(perfil.rol);
         setNombre(perfil.nombre || "");
         setCiudad(perfil.ciudad || "");
         setNivelEducativo(perfil.nivel_educativo || "");
@@ -180,7 +182,7 @@ export default function PerfilPage() {
   }
 
   // GUARDA DE SEGURIDAD: Los administradores no acceden a esta sección
-  if (isAdmin(userEmail)) {
+  if (isAdmin(userEmail, userRole)) {
     return (
       <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
         <div className="w-12 h-12 rounded-full bg-accent-50 text-accent-500 flex items-center justify-center mx-auto text-2xl">

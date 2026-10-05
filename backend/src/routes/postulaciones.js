@@ -50,6 +50,25 @@ router.patch("/:id/estado", requireOfferManager, async (req, res) => {
     return res.status(400).json({ error: "Estado inválido" });
   }
 
+  if (req.authRole === "empresa") {
+    const { data: application, error: applicationError } = await supabaseAdmin
+      .from("postulaciones")
+      .select("oferta_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (applicationError) return res.status(500).json({ error: applicationError.message });
+    if (!application) return res.status(404).json({ error: "Postulación no encontrada" });
+
+    const { data: offer, error: offerError } = await supabaseAdmin
+      .from("ofertas")
+      .select("id")
+      .eq("id", application.oferta_id)
+      .eq("empresa_id", req.companyId)
+      .maybeSingle();
+    if (offerError) return res.status(500).json({ error: offerError.message });
+    if (!offer) return res.status(403).json({ error: "No puedes cambiar postulaciones de otra empresa" });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("postulaciones")
     .update({ estado })

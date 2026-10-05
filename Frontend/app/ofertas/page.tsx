@@ -20,51 +20,52 @@ export default function OfertasPage() {
   const [ofertas, setOfertas] = useState<Oferta[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string; role?: string } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const refrescarOfertas = async () => {
+      const { data } = await supabase
+        .from("ofertas")
+        .select("*")
+        .eq("activa", true)
+        .order("created_at", { ascending: false });
+      if (!cancelled && data) setOfertas(data as Oferta[]);
+    };
+
+    channel = supabase
+      .channel("public-ofertas")
+      .on("postgres_changes", { event: "*", schema: "public", table: "ofertas" }, refrescarOfertas)
+      .subscribe();
+
     const verificarYSincronizar = async () => {
-      setLoading(true);
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
 
       if (!currentUser) {
-        setUser(null);
+        if (!cancelled) setUser(null);
       } else {
-        setUser({ id: currentUser.id, email: currentUser.email });
+        const { data: profile } = await supabase.from("perfiles").select("rol").eq("id", currentUser.id).maybeSingle();
+        if (!cancelled) setUser({ id: currentUser.id, email: currentUser.email, role: profile?.rol });
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("ofertas")
         .select("*")
         .eq("activa", true)
         .order("created_at", { ascending: false });
 
-      if (!error && data) setOfertas(data as Oferta[]);
-      setLoading(false);
-
-      const refrescarOfertas = async () => {
-        const { data: updated } = await supabase
-          .from("ofertas")
-          .select("*")
-          .eq("activa", true)
-          .order("created_at", { ascending: false });
-        if (updated) setOfertas(updated as Oferta[]);
-      };
-
-      const intervalo = window.setInterval(refrescarOfertas, 30000);
-      window.addEventListener("focus", refrescarOfertas);
-
-      return () => {
-        window.clearInterval(intervalo);
-        window.removeEventListener("focus", refrescarOfertas);
-      };
+      if (!cancelled && data) setOfertas(data as Oferta[]);
+      if (!cancelled) setLoading(false);
     };
 
-    const cleanup = verificarYSincronizar();
+    void verificarYSincronizar();
     return () => {
-      cleanup.then((unsubscribe) => unsubscribe?.());
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
     };
   }, []);
 
@@ -121,7 +122,7 @@ export default function OfertasPage() {
   }
 
   // GUARDA DE SEGURIDAD: Los administradores no acceden a esta sección
-  if (user && isAdmin(user.email)) {
+  if (user && isAdmin(user.email, user.role)) {
     return (
       <div className="card max-w-md mx-auto text-center py-10 my-8 space-y-4">
         <div className="w-12 h-12 rounded-full bg-accent-50 text-accent-500 flex items-center justify-center mx-auto text-2xl">

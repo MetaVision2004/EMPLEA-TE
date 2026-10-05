@@ -17,10 +17,7 @@ export default function Nav() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
+    const loadUser = async (currentUser: { id: string; email?: string } | null) => {
       if (currentUser) {
         const { data: profile } = await supabase
           .from("perfiles")
@@ -34,13 +31,14 @@ export default function Nav() {
       setLoading(false);
     };
 
-    checkUser();
+    supabase.auth.getUser().then(({ data: { user: currentUser } }) => loadUser(currentUser));
 
     // Listener de cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
-        setLoading(false);
+        queueMicrotask(() => {
+          void loadUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+        });
       }
     );
 
@@ -56,7 +54,8 @@ export default function Nav() {
   };
 
   // Determinar si el usuario es administrador
-  const userIsAdmin = canManageOffers(user ? { email: user.email, app_metadata: { role: user.role }, user_metadata: {} } : null);
+  const userCanManageOffers = canManageOffers(user ? { email: user.email, app_metadata: { role: user.role }, user_metadata: {} } : null);
+  const userIsAdmin = user?.role === "admin";
 
   const linkClass = (href: string) =>
     `text-sm transition-colors ${
@@ -80,7 +79,9 @@ export default function Nav() {
     { href: "/perfil", label: "Mi perfil" },
   ];
 
-  const activeLinks = userIsAdmin ? adminLinks : publicLinks;
+  const activeLinks = userCanManageOffers
+    ? adminLinks.filter((link) => link.href !== "/admin/analitica" || ["admin", "staff"].includes(user?.role || ""))
+    : publicLinks;
 
   return (
     <header className="sticky top-0 z-30 border-b border-primary-100 bg-white/95 shadow-sm backdrop-blur">
@@ -94,11 +95,11 @@ export default function Nav() {
           {/* Badge de rol (visible si logged in) */}
           {user && (
             <span className={`hidden sm:inline-flex px-2.5 py-1 rounded-xl text-xs font-medium border ${
-              userIsAdmin
+              userCanManageOffers
                 ? "bg-accent-50 text-accent-700 border-accent-200"
                 : "bg-primary-50 text-primary-700 border-primary-100"
             }`}>
-              {userIsAdmin ? "🔒 Administrador" : "🌐 Candidato"}
+              {userIsAdmin ? "🔒 Administrador" : user?.role === "staff" ? "Equipo" : user?.role === "empresa" ? "Empresa" : "🌐 Candidato"}
             </span>
           )}
         </div>

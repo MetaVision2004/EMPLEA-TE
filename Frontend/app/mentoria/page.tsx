@@ -42,7 +42,7 @@ export default function MentoriaPage() {
     setSesiones((prev) => [...prev, data as unknown as Sesion].sort((a, b) => a.fecha.localeCompare(b.fecha)));
     setFecha("");
     setTema("");
-    setMensaje("Solicitud enviada. El mentor revisará tu agenda.");
+    setMensaje("Solicitud enviada. El equipo de Emplea-TE revisará la agenda.");
   };
 
   if (loading) return <div className="card text-center py-12">Cargando mentoría...</div>;

@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import { canManageOffers } from "@/lib/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 type Stats = { perfiles: { total: number; completos: number }; postulaciones: { entrevista: number } };
 
 export default function AnaliticaPage() {
@@ -19,14 +17,12 @@ export default function AnaliticaPage() {
       const { data: profile } = user
         ? await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle()
         : { data: null };
-      const hasAccess = canManageOffers(user ? { email: user.email, app_metadata: { role: profile?.rol }, user_metadata: {} } : null);
+      const hasAccess = Boolean(user && ["admin", "staff"].includes(profile?.rol || ""));
       setAllowed(hasAccess);
       if (!hasAccess) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await fetch(`${API_BASE}/api/stats`, { headers: { Authorization: `Bearer ${session?.access_token || ""}` } });
-      const payload = await response.json();
-      if (!response.ok) return setError(payload.error || "No se pudo cargar la analítica.");
-      setStats(payload);
+      const { data, error } = await supabase.rpc("admin_stats");
+      if (error) return setError(error.message || "No se pudo cargar la analítica.");
+      setStats(data as Stats);
     };
     cargar().catch(() => setError("No se pudo cargar la analítica."));
   }, []);

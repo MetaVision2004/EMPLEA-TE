@@ -1,11 +1,7 @@
 import { supabaseAdmin } from "../config/supabase.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
-const FROM = process.env.FROM_EMAIL || "Emplea-TE <noreply@supabase.co>";
-
-function getEmailProvider() {
-  return "supabase-auth";
-}
+const FROM = process.env.FROM_EMAIL;
 
 function escapeHtml(input) {
   return String(input ?? "")
@@ -23,22 +19,24 @@ function frontendPath(path) {
 }
 
 export async function sendMail({ to, subject, html, type = "custom" }) {
-  const provider = getEmailProvider();
+  if (!process.env.RESEND_API_KEY || !FROM) {
+    throw new Error("RESEND_API_KEY y FROM_EMAIL deben estar configurados para enviar correos");
+  }
 
-  console.warn(
-    `[email:${type}] Este proyecto usa solo Supabase Auth. El envío de correos transaccionales se gestiona fuera de este servicio.`
-  );
-
-  return {
-    ok: true,
-    kind: "supabase-auth",
-    provider,
-    skipped: true,
-    to,
-    subject,
-    html,
-    from: FROM,
-  };
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    console.error(`[email:${type}] Resend rechazó el envío:`, result.message || response.statusText);
+    throw new Error("El proveedor de correo rechazó el envío");
+  }
+  return { data: { id: result.id } };
 }
 
 // ─── Shared layout ──────────────────────────────────────────────────────────
@@ -79,7 +77,7 @@ function layout(title, bodyHtml) {
             <td style="background:#f8f9ff;padding:28px 48px;text-align:center;border-top:1px solid #e8eaf6;">
               <p style="margin:0;color:#9ca3af;font-size:12px;">
                 © 2026 Emplea-TE · Tu primer trabajo, a un clic de distancia<br/>
-                <a href="#" style="color:#6366f1;text-decoration:none;">Darse de baja</a>
+                Recibiste este correo por una acción relacionada con tu cuenta en Emplea-TE.
               </p>
             </td>
           </tr>

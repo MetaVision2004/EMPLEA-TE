@@ -98,7 +98,7 @@ curl http://localhost:4000/api/ofertas
 1. `/registro` → crea cuenta y perfil básico.
 2. `/perfil` → completa datos y sube CV en PDF (va al bucket `documentos`).
 3. `/ofertas` → lista ofertas activas (usa las 3 de prueba del schema.sql), botón "Postularme".
-4. `/postulaciones` → kanban con las postulaciones del usuario por estado.
+4. `/postulaciones` → kanban de seguimiento personal, separado del estado oficial que actualiza la empresa.
 
 ## 6. Despliegue
 
@@ -118,16 +118,21 @@ curl http://localhost:4000/api/ofertas
 
 ### Roles y cambios de esquema
 
-El acceso administrativo se controla con `perfiles.rol`: `admin`, `staff` o
-`empresa` pueden gestionar ofertas y analítica; las cuentas nuevas reciben
-`candidato`. El backend exige un Bearer token de Supabase y vuelve a consultar
-el rol en cada request protegida. Para promover una cuenta existente, ejecuta
-en el SQL Editor:
+El acceso se controla con `perfiles.rol`: `admin` y `staff` pueden gestionar
+todas las ofertas y consultar analítica; `empresa` solo puede gestionar ofertas
+vinculadas a su registro de empresa; las cuentas nuevas reciben `candidato`.
+El backend exige un Bearer token y vuelve a consultar el rol en cada request.
+Para promover la cuenta administradora inicial, ejecuta
+[`docs/promote-admin.sql`](docs/promote-admin.sql) en el SQL Editor. Para otras
+cuentas, asigna el rol desde una sesión administrativa o el SQL Editor.
+
+Las cuentas empresa necesitan una fila en `empresas` con `owner_id` vinculado
+al UUID de su usuario. Admin/staff pueden asignarla desde el SQL Editor:
 
 ```sql
-update perfiles
-set rol = 'admin'
-where id = 'UUID_DEL_USUARIO';
+update public.empresas
+set owner_id = 'UUID_DEL_USUARIO'
+where id = 'UUID_DE_LA_EMPRESA';
 ```
 
 La clave `SUPABASE_SERVICE_ROLE_KEY` solo debe existir en el entorno del backend.
@@ -137,3 +142,20 @@ Supabase antes de desplegar.
 Después de actualizar el proyecto, ejecuta de nuevo las secciones nuevas de
 `docs/schema.sql` para crear `recursos_completados`, `mentores`,
 `sesiones_mentoria` y las políticas de progreso y edición de postulaciones.
+
+### Auth, correos y despliegue
+
+- En Supabase → Authentication → URL Configuration, configura como Site URL el
+  dominio de producción y agrega el dominio de Vercel (incluidos sus paths de
+  callback) y `http://localhost:3000/**` a Redirect URLs.
+- En Authentication → Providers/Settings, configura una longitud mínima de
+  contraseña de 8 caracteres; la validación de la interfaz no sustituye este
+  control del servidor.
+- Ejecuta `docs/schema.sql` en Supabase para activar RLS, propiedad de empresas,
+  estado personal/oficial y la RPC `admin_stats`.
+- El panel admin funciona directamente con Supabase. Las notificaciones por
+  correo todavía requieren desplegar el backend Express y configurar
+  `NEXT_PUBLIC_API_URL`, `RESEND_API_KEY`, `FROM_EMAIL` y `FRONTEND_URL` en sus
+  respectivos entornos.
+- `npm test --prefix backend`, `npm run lint --prefix Frontend` y
+  `npm run build --prefix Frontend` son los checks ejecutados por GitHub Actions.

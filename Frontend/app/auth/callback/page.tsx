@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [message, setMessage] = useState("Verificando tu enlace...");
+  const message = "Verificando tu enlace...";
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
